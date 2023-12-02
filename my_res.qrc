@@ -1,0 +1,39 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>icons/add_folder_96.png</file>
+        <file>icons/arrow.png</file>
+        <file>icons/arrow_up.png</file>
+        <file>icons/cdrom_96.png</file>
+        <file>icons/close_this_tab_512.png</file>
+        <file>icons/connect_network_drive_512.png</file>
+        <file>icons/connect_to_ftp_server_512.png</file>
+        <file>icons/create_a_new_tab_512.png</file>
+        <file>icons/create_shortcut_512.png</file>
+        <file>icons/disconnect_network_drive_512.png</file>
+        <file>icons/group_rename_512.png</file>
+        <file>icons/hdd_96.png</file>
+        <file>icons/new_file_512.png</file>
+        <file>icons/new_ftp_connection_512.png</file>
+        <file>icons/next_tab_512.png</file>
+        <file>icons/open_file_512.png</file>
+        <file>icons/open_folder_in_the_new_tab_(other_bar)_512.png</file>
+        <file>icons/open_folder_in_the_new_tab_512.png</file>
+        <file>icons/open_with_512.png</file>
+        <file>icons/pack_512.png</file>
+        <file>icons/previous_tab_512.png</file>
+        <file>icons/remove_file_512.png</file>
+        <file>icons/remove_selection_512.png</file>
+        <file>icons/rename_file_512.png</file>
+        <file>icons/search_file_512.png</file>
+        <file>icons/select_all_512.png</file>
+        <file>icons/select_file_512.png</file>
+        <file>icons/settings_512.png</file>
+        <file>icons/share_512.png</file>
+        <file>icons/stop_sharing_512.png</file>
+        <file>icons/unpack_512.png</file>
+        <file>icons/usb_96.png</file>
+        <file>icons/back.png</file>
+        <file>icons/network_96.png</file>
+        <file>icons/close_all_tabs_512.png</file>
+    </qresource>
+</RCC>
