@@ -35,5 +35,8 @@
         <file>icons/back.png</file>
         <file>icons/network_96.png</file>
         <file>icons/close_all_tabs_512.png</file>
+        <file>icons/up.png</file>
+        <file>icons/left_arrow.png</file>
+        <file>icons/right_arrow.png</file>
     </qresource>
 </RCC>

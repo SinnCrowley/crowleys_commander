@@ -6,182 +6,134 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>933</width>
-    <height>631</height>
+    <width>930</width>
+    <height>600</height>
    </rect>
-  </property>
-  <property name="sizePolicy">
-   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-    <horstretch>0</horstretch>
-    <verstretch>0</verstretch>
-   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>Crowley's Commander</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">QWidget#leftPanel, QWidget#rightPanel{
-  border: 1px solid #666;
-}
-QWidget#statusDiskLeft, QWidget#statusDiskRight {
-  border-bottom: 1px solid #666;
-  border-top: 1px solid #666;
-}
-
-QLabel{color: #fff;}
-
-QMainWindow{
-  background: #444;
+   <string notr="true">QWidget#mainWidget {
+	background: #333;
+	color: #fff;
 }
 
 QPushButton {
-  background: #333;
-  height: 100%;
-  width: 50px;
-  color: #fff;
-  border: 1px solid #555;
- }
-
-QPushButton:hover{
-  background: #444;
+	border: 1px solid #333;
+	background: #222;
+	padding: 5px 7px;
+	border-radius: 3px;
 }
-QPushButton::pressed{
-  background: #333;
+QPushButton:hover {
+	background: #292929;
+}
+QPushButton:pressed {
+	background: #222;
 }
 
-
-QComboBox{
-  background: #333;
-  color: #fff;
-  border: 1px solid #555;
-  border-radius: 4px;
+QComboBox {
+	background: #222;
+	border: 1px solid #444;
+	border-radius: 3px;
 }
-QComboBox::drop-down  {
-  border: 0px; /* This seems to replace the whole arrow of the combo box */
+QComboBox:hover {
+	background: #292929;
+}
+QComboBox::drop-down {
+	border: none;
+	background: transparent;
 }
 QComboBox::down-arrow {
-  image: url(:/icons/icons/arrow.png);
-  width: 14px;
-  height: 14px;
-}
-QComboBox QAbstractItemView {
-  border: 1px solid #666;
-  color: #fff;
-  background: #444;
-  outline: 0px;
+	width: 12px;
+	height: 12px;
+	margin-right: 6px;
+	image: url(:/icons/icons/arrow.png);
 }
 
-QComboBox QAbstractItemView::item:hover, QComboBox QAbstractItemView::item:selected {
-  background-color: rgba(250, 82, 82, 0.3);
-  border: none;
+QWidget#leftPanel, QWidget#rightPanel {
+	border: 1px solid #444;
 }
 
+QWidget#statusDiskLeft, QWidget#statusDiskRight {
+	border-top: 1px solid #444;
+	border-bottom: 1px solid #444;
+}
 
-QTabBar::tab{
-  background: #333;
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
-  padding: 8px 18px;
-  border: 1px solid #555;
-  color: #fff;
+QWidget#bottomButtons {
+	border-top: 1px solid #444;
+}
+
+QWidget#mainWidget QLineEdit {
+	background: #ea4242;
+	padding: 4px 0;
+	border-radius: 0;
+	color: #222;
+}
+
+QWidget#mainWidget QLineEdit:focus {
+	background: #fa5252;
+	color: #000;
+}
+
+QTabBar::tab {
+	background: #222;
+	padding: 6px 10px;
+	border-top-left-radius: 5px;
+	border-top-right-radius: 5px;
+	border: 1px solid #444;
+}
+QTabBar::tab:hover {
+	background: #292929;
 }
 QTabBar::tab:selected {
-  background: rgb(250, 82, 82);
-  color: #000;
+	background: #fa5252;
+	color: #000;
 }
-QTabWidget::tab-bar {border-bottom: 1px solid #555;}
-QTabWidget::pane {border: none;}
-
-QTabWidget QLineEdit {
-  background: #913030;
-  border: 1px solid #555;
-  color: #000;
-  height: 30px;
-}
-QTabWidget QLineEdit:focus {
-  background: #FA5252;
+QTabBar::tab:selected:hover {
+	background: #ff5757;
+	color: #000;
 }
 
-
-QTreeView{
-  color: #fff;
-  background: #333;
+QTreeView::item {
+	border-bottom: 1px solid #444;
+	padding: 4px 0;
 }
-QTreeView::item{
-  padding: 5px  0;
-  border-bottom: 1px solid #666;
+QTreeView::item:hover {
+	background: #393939;
 }
 QTreeView::item:selected {
-  color:  #FA5252;
-  background: transparent;
+	color: #fa5252;
+	background: transparent;
 }
-
 QHeaderView::section {
-  background: #444;
-  border: none;
-  border-left: 1px solid #555;
-  border-bottom: 1px solid #666;
-  color: #fff;
-  padding: 3px 0 -3px 4px;
+	background: #222;
+	border-bottom: 1px solid #555;
+	border-right: 1px solid #444;
+	height: 20px;
+	margin-top: 8px;
+	margin-left: 5px;
 }
-QHeaderView::section::first {padding-left: -16px;}
-
-QHeaderView::down-arrow {
-  image: url(:/icons/icons/arrow.png);
-  width: 12px;
-  height: auto;
-  margin: 5px;
-}
-QHeaderView::up-arrow {
-  image: url(:/icons/icons/arrow_up.png);
-  width: 12px;
-  height: auto;
-  margin: 5px;
+QHeaderView::section:first {
+	margin-left: -15px;
 }
 QHeaderView::section:hover {
-  background: #555;
+	background: #292929;
 }
-
-QWidget#statusBar {
-  background: #444;
-  color: #fff;
-  padding: 10px 50px;
+QHeaderView::down-arrow {
+    image: url(:icons/icons/arrow.png);
+	width: 12px;
+	height: 12px;
+	margin-right: 8px;
 }
-QWidget#statusBar QPushButton {
-  font-size: 12px;
-}
-QWidget#statusBar QLineEdit {
-  background: #333;
-  color: #fff;
-  border: 1px solid #555;
-}
-</string>
+QHeaderView::up-arrow {
+    image: url(:icons/icons/arrow_up.png);
+	width: 12px;
+	height: 12px;
+	margin-right: 8px;
+}</string>
   </property>
-  <property name="documentMode">
-   <bool>false</bool>
-  </property>
-  <widget class="QWidget" name="centralWidget">
-   <property name="sizePolicy">
-    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-     <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
-    </sizepolicy>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>933</width>
-     <height>606</height>
-    </size>
-   </property>
-   <property name="font">
-    <font>
-     <family>Verdana</family>
-     <pointsize>12</pointsize>
-    </font>
-   </property>
-   <property name="styleSheet">
-    <string notr="true"/>
-   </property>
+  <widget class="QWidget" name="mainWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <property name="spacing">
      <number>0</number>
@@ -200,15 +152,6 @@ QWidget#statusBar QLineEdit {
     </property>
     <item>
      <widget class="QWidget" name="mainBar" native="true">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="styleSheet">
-       <string notr="true"/>
-      </property>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <property name="spacing">
         <number>0</number>
@@ -226,25 +169,7 @@ QWidget#statusBar QLineEdit {
         <number>0</number>
        </property>
        <item>
-        <widget class="QFrame" name="leftPanel">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="styleSheet">
-          <string notr="true"/>
-         </property>
-         <property name="frameShape">
-          <enum>QFrame::StyledPanel</enum>
-         </property>
-         <property name="frameShadow">
-          <enum>QFrame::Raised</enum>
-         </property>
-         <property name="lineWidth">
-          <number>0</number>
-         </property>
+        <widget class="QWidget" name="leftPanel" native="true">
          <layout class="QVBoxLayout" name="leftPanelLayout">
           <property name="spacing">
            <number>0</number>
@@ -261,23 +186,8 @@ QWidget#statusBar QLineEdit {
           <property name="bottomMargin">
            <number>0</number>
           </property>
-          <item alignment="Qt::AlignLeft">
+          <item>
            <widget class="QWidget" name="diskButtonsLeft" native="true">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="styleSheet">
-             <string notr="true"/>
-            </property>
             <layout class="QHBoxLayout" name="diskButtonsLeftLayout">
              <property name="spacing">
               <number>0</number>
@@ -299,21 +209,9 @@ QWidget#statusBar QLineEdit {
           </item>
           <item>
            <widget class="QWidget" name="statusDiskLeft" native="true">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>30</height>
-             </size>
-            </property>
-            <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <layout class="QHBoxLayout" name="statusDiskLeftLayout">
              <property name="spacing">
-              <number>7</number>
+              <number>5</number>
              </property>
              <property name="leftMargin">
               <number>0</number>
@@ -331,47 +229,35 @@ QWidget#statusBar QLineEdit {
               <widget class="QComboBox" name="diskListLeft">
                <property name="minimumSize">
                 <size>
-                 <width>50</width>
-                 <height>0</height>
+                 <width>0</width>
+                 <height>20</height>
                 </size>
                </property>
                <property name="maximumSize">
                 <size>
                  <width>75</width>
-                 <height>16777215</height>
+                 <height>20</height>
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::ClickFocus</enum>
-               </property>
-               <property name="editable">
-                <bool>false</bool>
-               </property>
-               <property name="duplicatesEnabled">
-                <bool>false</bool>
+                <enum>Qt::FocusPolicy::NoFocus</enum>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="diskNameLeft">
                <property name="text">
-                <string>Windows</string>
+                <string>TextLabel</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="diskSizeLeft">
-               <property name="styleSheet">
-                <string notr="true">margin-right: 5px;</string>
-               </property>
                <property name="text">
-                <string/>
-               </property>
-               <property name="textFormat">
-                <enum>Qt::AutoText</enum>
+                <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -382,22 +268,7 @@ QWidget#statusBar QLineEdit {
         </widget>
        </item>
        <item>
-        <widget class="QFrame" name="rightPanel">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="frameShape">
-          <enum>QFrame::StyledPanel</enum>
-         </property>
-         <property name="frameShadow">
-          <enum>QFrame::Raised</enum>
-         </property>
-         <property name="lineWidth">
-          <number>0</number>
-         </property>
+        <widget class="QWidget" name="rightPanel" native="true">
          <layout class="QVBoxLayout" name="rightPanelLayout">
           <property name="spacing">
            <number>0</number>
@@ -414,32 +285,11 @@ QWidget#statusBar QLineEdit {
           <property name="bottomMargin">
            <number>0</number>
           </property>
-          <item alignment="Qt::AlignLeft">
+          <item>
            <widget class="QWidget" name="diskButtonsRight" native="true">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="layoutDirection">
-             <enum>Qt::LeftToRight</enum>
-            </property>
-            <property name="styleSheet">
-             <string notr="true"/>
-            </property>
             <layout class="QHBoxLayout" name="diskButtonsRightLayout">
              <property name="spacing">
               <number>0</number>
-             </property>
-             <property name="sizeConstraint">
-              <enum>QLayout::SetDefaultConstraint</enum>
              </property>
              <property name="leftMargin">
               <number>0</number>
@@ -458,25 +308,16 @@ QWidget#statusBar QLineEdit {
           </item>
           <item>
            <widget class="QWidget" name="statusDiskRight" native="true">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>30</height>
-             </size>
-            </property>
             <property name="maximumSize">
              <size>
               <width>16777215</width>
-              <height>30</height>
+              <height>16777215</height>
              </size>
             </property>
-            <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <layout class="QHBoxLayout" name="statusDiskRightLayout">
+             <property name="spacing">
+              <number>5</number>
+             </property>
              <property name="leftMargin">
               <number>0</number>
              </property>
@@ -491,55 +332,37 @@ QWidget#statusBar QLineEdit {
              </property>
              <item>
               <widget class="QComboBox" name="diskListRight">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
                <property name="minimumSize">
                 <size>
-                 <width>50</width>
-                 <height>0</height>
+                 <width>0</width>
+                 <height>20</height>
                 </size>
                </property>
                <property name="maximumSize">
                 <size>
                  <width>75</width>
-                 <height>16777215</height>
+                 <height>20</height>
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::ClickFocus</enum>
-               </property>
-               <property name="editable">
-                <bool>false</bool>
-               </property>
-               <property name="duplicatesEnabled">
-                <bool>false</bool>
+                <enum>Qt::FocusPolicy::ClickFocus</enum>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="diskNameRight">
                <property name="text">
-                <string>Windows</string>
+                <string>TextLabel</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="diskSizeRight">
-               <property name="styleSheet">
-                <string notr="true">margin-right: 5px;</string>
-               </property>
                <property name="text">
-                <string/>
-               </property>
-               <property name="textFormat">
-                <enum>Qt::AutoText</enum>
+                <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -553,143 +376,80 @@ QWidget#statusBar QLineEdit {
      </widget>
     </item>
     <item>
-     <widget class="QWidget" name="statusBar" native="true">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>70</height>
-       </size>
-      </property>
+     <widget class="QWidget" name="bottomButtons" native="true">
       <property name="maximumSize">
        <size>
         <width>16777215</width>
-        <height>70</height>
+        <height>40</height>
        </size>
       </property>
-      <property name="autoFillBackground">
-       <bool>false</bool>
-      </property>
-      <property name="styleSheet">
-       <string notr="true"/>
-      </property>
-      <layout class="QVBoxLayout" name="verticalLayout_5">
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
        <property name="spacing">
-        <number>5</number>
+        <number>0</number>
+       </property>
+       <property name="sizeConstraint">
+        <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
        </property>
        <property name="leftMargin">
-        <number>10</number>
+        <number>0</number>
        </property>
        <property name="topMargin">
-        <number>10</number>
+        <number>0</number>
        </property>
        <property name="rightMargin">
-        <number>10</number>
+        <number>0</number>
        </property>
        <property name="bottomMargin">
-        <number>5</number>
+        <number>0</number>
        </property>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <property name="spacing">
-          <number>0</number>
+        <widget class="QPushButton" name="editBtn">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
-         <item>
-          <widget class="QLabel" name="cmdPath">
-           <property name="text">
-            <string>C: &gt; </string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="cmd">
-           <property name="focusPolicy">
-            <enum>Qt::ClickFocus</enum>
-           </property>
-          </widget>
-         </item>
-        </layout>
+         <property name="text">
+          <string>F4 Edit</string>
+         </property>
+        </widget>
        </item>
        <item>
-        <widget class="QWidget" name="actionButtons" native="true">
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>20</height>
-          </size>
+        <widget class="QPushButton" name="copyBtn">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
-         <layout class="QHBoxLayout" name="horizontalLayout_6">
-          <property name="spacing">
-           <number>0</number>
-          </property>
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
-           <number>0</number>
-          </property>
-          <item>
-           <widget class="QPushButton" name="editBtn">
-            <property name="focusPolicy">
-             <enum>Qt::NoFocus</enum>
-            </property>
-            <property name="text">
-             <string>F4    Edit</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="copyBtn">
-            <property name="focusPolicy">
-             <enum>Qt::NoFocus</enum>
-            </property>
-            <property name="text">
-             <string>F5    Copy</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="moveBtn">
-            <property name="focusPolicy">
-             <enum>Qt::NoFocus</enum>
-            </property>
-            <property name="text">
-             <string>F6    Move</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="folderBtn">
-            <property name="focusPolicy">
-             <enum>Qt::NoFocus</enum>
-            </property>
-            <property name="text">
-             <string>F7    Folder</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="deleteBtn">
-            <property name="focusPolicy">
-             <enum>Qt::NoFocus</enum>
-            </property>
-            <property name="text">
-             <string>F8    Delete</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
+         <property name="text">
+          <string>F5 Copy</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="moveBtn">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::NoFocus</enum>
+         </property>
+         <property name="text">
+          <string>F6 Move</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="folderBtn">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::NoFocus</enum>
+         </property>
+         <property name="text">
+          <string>F7 New Folder</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="deleteBtn">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::NoFocus</enum>
+         </property>
+         <property name="text">
+          <string>F8 Delete</string>
+         </property>
         </widget>
        </item>
       </layout>
@@ -697,32 +457,34 @@ QWidget#statusBar QLineEdit {
     </item>
    </layout>
   </widget>
-  <widget class="QMenuBar" name="menuBar">
+  <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>933</width>
+     <width>930</width>
      <height>25</height>
     </rect>
-   </property>
-   <property name="styleSheet">
-    <string notr="true"/>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="separator"/>
     <addaction name="actionNew_File"/>
     <addaction name="actionOpen_selected_file"/>
+    <addaction name="separator"/>
     <addaction name="actionOpen_with"/>
     <addaction name="actionRename"/>
     <addaction name="actionRemove"/>
-    <addaction name="actionGroup_rename"/>
-    <addaction name="actionPack"/>
-    <addaction name="actionUnpack"/>
+    <addaction name="separator"/>
+    <addaction name="actionRemove_permanently"/>
     <addaction name="actionCreate_Folder"/>
-    <addaction name="actionCreate_shortcut"/>
+    <addaction name="actionCreate_Shortcut"/>
+    <addaction name="separator"/>
+    <addaction name="actionCut"/>
+    <addaction name="actionCopy"/>
+    <addaction name="actionPaste"/>
    </widget>
    <widget class="QMenu" name="menuSelection">
     <property name="title">
@@ -730,7 +492,7 @@ QWidget#statusBar QLineEdit {
     </property>
     <addaction name="actionSelect_file"/>
     <addaction name="actionSelect_all"/>
-    <addaction name="actionRemove_Selection"/>
+    <addaction name="actionRemove_selection"/>
    </widget>
    <widget class="QMenu" name="menuTabs">
     <property name="title">
@@ -738,31 +500,37 @@ QWidget#statusBar QLineEdit {
     </property>
     <addaction name="actionCreate_a_new_tab"/>
     <addaction name="actionClose_this_tab"/>
+    <addaction name="separator"/>
     <addaction name="actionClose_all_tabs"/>
     <addaction name="actionSwitch_to_the_next_tab"/>
-    <addaction name="actionSwitch_to_the_previous_tab"/>
     <addaction name="separator"/>
+    <addaction name="actionSwitch_to_the_previous_tab"/>
     <addaction name="actionOpen_the_folder_in_the_new_tab"/>
-    <addaction name="actionOpen_the_folder_in_the_new_tab_in_another_bar"/>
+    <addaction name="actionOpen_this_folder_in_the_new_tab_in_another_bar"/>
    </widget>
-   <widget class="QMenu" name="menuSettings">
+   <widget class="QMenu" name="menuTools">
     <property name="title">
      <string>Tools</string>
     </property>
-    <addaction name="actionFile_search"/>
-    <addaction name="separator"/>
-    <addaction name="actionSettings"/>
+    <addaction name="actionFile_Search"/>
+    <addaction name="actionShow_Hide_hidden_files"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSelection"/>
    <addaction name="menuTabs"/>
-   <addaction name="menuSettings"/>
+   <addaction name="menuTools"/>
   </widget>
+  <action name="actionNew_File">
+   <property name="text">
+    <string>New File</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
+  </action>
   <action name="actionOpen_selected_file">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/open_file_512.png</normalon>
-    </iconset>
+   <property name="enabled">
+    <bool>true</bool>
    </property>
    <property name="text">
     <string>Open selected file</string>
@@ -771,15 +539,13 @@ QWidget#statusBar QLineEdit {
     <string>Return</string>
    </property>
    <property name="shortcutContext">
-    <enum>Qt::WidgetShortcut</enum>
+    <enum>Qt::ShortcutContext::WidgetShortcut</enum>
+   </property>
+   <property name="priority">
+    <enum>QAction::Priority::LowPriority</enum>
    </property>
   </action>
   <action name="actionOpen_with">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/open_with_512.png</normalon>
-    </iconset>
-   </property>
    <property name="text">
     <string>Open with</string>
    </property>
@@ -788,11 +554,6 @@ QWidget#statusBar QLineEdit {
    </property>
   </action>
   <action name="actionRename">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/rename_file_512.png</normalon>
-    </iconset>
-   </property>
    <property name="text">
     <string>Rename</string>
    </property>
@@ -800,324 +561,23 @@ QWidget#statusBar QLineEdit {
     <string>F2</string>
    </property>
   </action>
-  <action name="actionGroup_rename">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/group_rename_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Group rename</string>
-   </property>
-  </action>
-  <action name="actionPack">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/pack_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Pack</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+P</string>
-   </property>
-  </action>
-  <action name="actionUnpack">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/unpack_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Unpack</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+U</string>
-   </property>
-  </action>
-  <action name="actionCreate_shortcut">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/create_shortcut_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Create shortcut</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+L</string>
-   </property>
-  </action>
-  <action name="actionSelect_file">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/select_file_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Select file</string>
-   </property>
-   <property name="shortcut">
-    <string>Space</string>
-   </property>
-   <property name="iconVisibleInMenu">
-    <bool>true</bool>
-   </property>
-  </action>
-  <action name="actionSelect_all">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/select_all_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Select all</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+A</string>
-   </property>
-   <property name="iconVisibleInMenu">
-    <bool>true</bool>
-   </property>
-   <property name="shortcutVisibleInContextMenu">
-    <bool>true</bool>
-   </property>
-  </action>
-  <action name="actionRemove_Selection">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/remove_selection_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Remove selection</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+D</string>
-   </property>
-   <property name="iconVisibleInMenu">
-    <bool>true</bool>
-   </property>
-   <property name="shortcutVisibleInContextMenu">
-    <bool>true</bool>
-   </property>
-  </action>
-  <action name="actionConnect_network_drive">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/connect_network_drive_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Connect network drive</string>
-   </property>
-  </action>
-  <action name="actionDisconnect_network_drive">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/disconnect_network_drive_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Disconnect network drive</string>
-   </property>
-  </action>
-  <action name="actionShare_folder">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/share_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Share file/folder</string>
-   </property>
-  </action>
-  <action name="actionStop_sharing">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/stop_sharing_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Stop sharing </string>
-   </property>
-  </action>
-  <action name="actionNew_FTP_connection">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/new_ftp_connection_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>New FTP-connection</string>
-   </property>
-  </action>
-  <action name="actionConnect_to_FTP_server">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/connect_to_ftp_server_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Connect to FTP-server</string>
-   </property>
-  </action>
-  <action name="actionCreate_a_new_tab">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/create_a_new_tab_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Create a new tab</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+T</string>
-   </property>
-   <property name="shortcutContext">
-    <enum>Qt::WindowShortcut</enum>
-   </property>
-  </action>
-  <action name="actionClose_this_tab">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/close_this_tab_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Close this tab</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+W</string>
-   </property>
-  </action>
-  <action name="actionSwitch_to_the_next_tab">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/next_tab_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Switch to the next tab</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Tab</string>
-   </property>
-  </action>
-  <action name="actionSwitch_to_the_previous_tab">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/previous_tab_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Switch to the previous tab</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Shift+Tab</string>
-   </property>
-  </action>
-  <action name="actionClose_all_tabs">
-   <property name="icon">
-    <iconset resource="my_res.qrc">
-     <normaloff>:/icons/icons/closa_all_tabs_512.png</normaloff>
-     <normalon>:/icons/icons/closa_all_tabs_512.png</normalon>:/icons/icons/closa_all_tabs_512.png</iconset>
-   </property>
-   <property name="text">
-    <string>Close all tabs</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Shift+W</string>
-   </property>
-  </action>
-  <action name="actionOpen_the_folder_in_the_new_tab">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/open_folder_in_the_new_tab_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Open the folder in the new tab</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Up</string>
-   </property>
-  </action>
-  <action name="actionOpen_the_folder_in_the_new_tab_in_another_bar">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/open_folder_in_the_new_tab_(other_bar)_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Open the folder in the new tab (in the other bar)</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Shift+Up</string>
-   </property>
-  </action>
-  <action name="actionFile_search">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/search_file_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>File search</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+F</string>
-   </property>
-  </action>
-  <action name="actionSettings">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/settings_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>Settings</string>
-   </property>
-  </action>
-  <action name="actionNew_File">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/new_file_512.png</normalon>
-    </iconset>
-   </property>
-   <property name="text">
-    <string>New File</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+N</string>
-   </property>
-  </action>
   <action name="actionRemove">
-   <property name="icon">
-    <iconset>
-     <normalon>:/icons/icons/remove_file_512.png</normalon>
-    </iconset>
-   </property>
    <property name="text">
-    <string>Remove selected file</string>
+    <string>Remove</string>
    </property>
    <property name="shortcut">
     <string>Del</string>
    </property>
   </action>
-  <action name="actionCreate_Folder">
-   <property name="icon">
-    <iconset>
-     <normaloff>:/icons/file_icons/icons/add_folder_96.png</normaloff>
-     <normalon>:/icons/icons/add_folder_96.png</normalon>:/icons/file_icons/icons/add_folder_96.png</iconset>
+  <action name="actionRemove_permanently">
+   <property name="text">
+    <string>Remove permanently</string>
    </property>
+   <property name="shortcut">
+    <string>Shift+Del</string>
+   </property>
+  </action>
+  <action name="actionCreate_Folder">
    <property name="text">
     <string>Create Folder</string>
    </property>
@@ -1125,9 +585,135 @@ QWidget#statusBar QLineEdit {
     <string>Ctrl+Shift+N</string>
    </property>
   </action>
+  <action name="actionCreate_Shortcut">
+   <property name="text">
+    <string>Create Shortcut</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+L</string>
+   </property>
+  </action>
+  <action name="actionCut">
+   <property name="text">
+    <string>Cut</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+X</string>
+   </property>
+  </action>
+  <action name="actionCopy">
+   <property name="text">
+    <string>Copy</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionPaste">
+   <property name="text">
+    <string>Paste</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+V</string>
+   </property>
+  </action>
+  <action name="actionSelect_file">
+   <property name="text">
+    <string>Select file</string>
+   </property>
+   <property name="shortcut">
+    <string>Space</string>
+   </property>
+  </action>
+  <action name="actionSelect_all">
+   <property name="text">
+    <string>Select all</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+A</string>
+   </property>
+  </action>
+  <action name="actionRemove_selection">
+   <property name="text">
+    <string>Remove selection</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="actionCreate_a_new_tab">
+   <property name="text">
+    <string>Create a new tab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+T</string>
+   </property>
+  </action>
+  <action name="actionClose_this_tab">
+   <property name="text">
+    <string>Close this tab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+W</string>
+   </property>
+  </action>
+  <action name="actionClose_all_tabs">
+   <property name="text">
+    <string>Close all tabs</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+W</string>
+   </property>
+  </action>
+  <action name="actionSwitch_to_the_next_tab">
+   <property name="text">
+    <string>Switch to the next tab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Right</string>
+   </property>
+  </action>
+  <action name="actionSwitch_to_the_previous_tab">
+   <property name="text">
+    <string>Switch to the previous tab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Left</string>
+   </property>
+  </action>
+  <action name="actionOpen_the_folder_in_the_new_tab">
+   <property name="text">
+    <string>Open the folder in the new tab</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Up</string>
+   </property>
+  </action>
+  <action name="actionOpen_this_folder_in_the_new_tab_in_another_bar">
+   <property name="text">
+    <string>Open the folder in the new tab in another bar</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+Up</string>
+   </property>
+  </action>
+  <action name="actionFile_Search">
+   <property name="text">
+    <string>File search</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+F</string>
+   </property>
+  </action>
+  <action name="actionShow_Hide_hidden_files">
+   <property name="text">
+    <string>Show/Hide hidden files</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+H</string>
+   </property>
+  </action>
  </widget>
- <resources>
-  <include location="my_res.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

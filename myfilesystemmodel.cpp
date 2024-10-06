@@ -1,19 +1,20 @@
 #include <QFileIconProvider>
 #include <QtGui>
 #include <QMessageBox>
+#include <QApplication>
+
+#include <QProgressDialog>
 
 #include "myfilesystemmodel.h"
-
 
 MyFileSystemModel::MyFileSystemModel(QObject *parent) {
     Q_UNUSED(parent);
 
-    setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files);
+    setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::System);
     setReadOnly(false);
 }
 
-// filesystem icons
-QVariant MyFileSystemModel::data ( const QModelIndex & index, int role ) const {
+QVariant MyFileSystemModel::data (const QModelIndex &index, int role) const {
     if(index.column() == 0 && role == Qt::DecorationRole ) {
         QFileInfo info = MyFileSystemModel::fileInfo(index);
         QFileIconProvider provider;
@@ -24,152 +25,225 @@ QVariant MyFileSystemModel::data ( const QModelIndex & index, int role ) const {
 
         return icon;
     }
+
+    if(role == Qt::DisplayRole) {
+        QFileInfo info = MyFileSystemModel::fileInfo(index);
+
+        // files and folders that start with dot (.gitignore, .atom)
+        if(info.completeBaseName() == "") {
+            if(index.column() == 0)
+                return "." + info.suffix();
+            if(index.column() == 2) {
+                if(info.isDir())
+                    return "Folder";
+                else
+                    return "";
+            }
+        }
+
+        if(index.column() == 0) {
+            if(info.isDir() && !info.isSymLink())
+                return info.fileName();
+            else
+                return info.completeBaseName();
+        }
+
+        if(index.column() == 2) {
+            if(info.isDir() && !info.isSymLink())
+                return QString("Folder");
+            else
+                return info.suffix().toLower();
+        }
+    }
+
+    if(role == Qt::EditRole) {
+        QFileInfo info = MyFileSystemModel::fileInfo(index);
+
+        if(index.column() == 0)
+            if(info.isSymLink())
+                return info.fileName();
+    }
     return QFileSystemModel::data(index, role);
 }
 
-// !!!!!!!!!!!!!!!!!!!!!!!
-// починить работу копирования папок
-// !!!!!!!!!!!!!!!!!!!!!!!
+bool MyFileSystemModel::setData(const QModelIndex &index, const QVariant &value, int role) {
+    if (role == Qt::EditRole && index.column() == 0) {
+        QFileInfo info = fileInfo(index);
+        QString oldFilePath = info.filePath();
+        QString newFilePath = info.absolutePath() + "/" + value.toString();
+
+        if (info.isSymLink() || info.isDir() || info.isFile()) {
+            if(newFilePath == oldFilePath)
+                return false;
+
+            if (QFile::rename(oldFilePath, newFilePath)) {
+                // update model if successs
+                emit dataChanged(index, index);
+                return true;
+            } else {
+                // errors handling
+                QMessageBox::warning(nullptr, "Rename error", "Failed to rename the file.");
+                return false;
+            }
+        }
+    }
+    return QFileSystemModel::setData(index, value, role);
+}
+
 
 // file actions
-void MyFileSystemModel::copyFiles(QStringList source, const QString targetPath) {
-    for(const QString &file : source) {
-        QFileInfo *fileInfo = new QFileInfo(file);
-
-        if(QFileInfo::exists(targetPath + fileInfo->fileName())) {
-            QMessageBox msgFileExists;
-            msgFileExists.setIcon(QMessageBox::Question);
-            msgFileExists.setWindowTitle("File exists");
-            msgFileExists.setText("File \"" + targetPath + fileInfo->fileName() +
-                                   "\" already exists! Do you want to overwrite the file?");
-            QPushButton *overwriteButton = msgFileExists.addButton("Overwrite", QMessageBox::YesRole);
-            QPushButton *overwriteAllButton = msgFileExists.addButton("Overwrite All", QMessageBox::YesRole);
-            QPushButton *skipButton = msgFileExists.addButton("Skip", QMessageBox::NoRole);
-            QPushButton *skipAllButton = msgFileExists.addButton("Skip All", QMessageBox::NoRole);
-            msgFileExists.exec();
-
-            if(msgFileExists.clickedButton() == (QAbstractButton*)overwriteButton) {
-                QStringList filesList;
-                filesList.append(file);
-                copyFilesWithOverwriting(filesList, targetPath);
+/*void MyFileSystemModel::updateProgress(QStringList fileList, QProgressDialog &dialog) {
+    qint64 filesSize = 0;
+    for (const QString &file : fileList) {
+        QFileInfo fileInfo(file);
+        if(fileInfo.exists()) {
+            if (fileInfo.isFile() || fileInfo.isSymLink()) {
+                filesSize += fileInfo.size();
+            } else if (fileInfo.isDir()) {
+                filesSize += calculateDirectorySize(fileInfo);
             }
-            if(msgFileExists.clickedButton() == (QAbstractButton*)overwriteAllButton) {
-                QStringList rest;
-                for(QList<QString>::iterator it = source.begin() + source.indexOf(file); it != source.end(); ++it)
-                    rest.append(*it);
-                copyFilesWithOverwriting(rest, targetPath);
-                break;
-            }
-            if(msgFileExists.clickedButton() == (QAbstractButton*)skipButton) {
+        }
+    }
+    dialog.setValue(filesSize);
+}
+
+qint64 MyFileSystemModel::calculateDirectorySize(const QFileInfo& dirInfo) {
+    qint64 totalSize = 0;
+    QDir dir(dirInfo.filePath());
+    QFileInfoList fileList = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::AllDirs);
+
+    for (const QFileInfo& fileInfo : fileList) {
+        if (fileInfo.isDir()) {
+            totalSize += calculateDirectorySize(fileInfo);
+        } else {
+            totalSize += fileInfo.size();
+        }
+    }
+
+    return totalSize;
+}
+*/
+
+bool MyFileSystemModel::copyFiles(QStringList source, QString targetPath) {
+
+    if (targetPath.at(targetPath.length() - 1) != '/')
+        targetPath.append('/');
+
+    // Создаем диалоговое окно для отслеживания прогресса копирования
+    QProgressDialog progressDialog("Copying files...", "Cancel", 0, source.size());
+    progressDialog.setWindowModality(Qt::WindowModal);
+    progressDialog.setMinimumDuration(500);  // Появится только если копирование занимает больше 500 мс
+    progressDialog.setWindowTitle("Copy Progress");
+
+    // Создание директории назначения
+    QDir destinationDir(targetPath);
+    if (!destinationDir.exists()) {
+        if (!destinationDir.mkdir(targetPath)) {
+            QMessageBox::warning(nullptr, "Error", "Failed to create the destination folder.");
+            return false;
+        }
+    }
+
+    bool overwriteAll = false;
+    bool skipAll = false;
+
+    for (int i = 0; i < source.size(); ++i) {
+        // Обновляем прогресс
+        progressDialog.setValue(i);
+
+        // Проверка на отмену пользователем
+        if (progressDialog.wasCanceled()) {
+            QMessageBox::warning(nullptr, "Operation Cancelled", "File copying operation was cancelled.");
+            return false;
+        }
+
+        // Обработка событий интерфейса, чтобы не блокировать окно
+        QCoreApplication::processEvents();
+
+        QFileInfo fileInfo(source[i]);
+
+        // Проверка, является ли папка-источник родителем папки-назначения
+        if (targetPath.contains(source[i]) && fileInfo.isDir()) {
+            QMessageBox::warning(nullptr, "Error", "The source directory is the parent of the target directory!");
+            return false;
+        }
+
+        // Если файл уже существует, спрашиваем, что делать
+        if (QFileInfo::exists(targetPath + fileInfo.fileName())) {
+            if (!overwriteAll && !skipAll) {
+                QMessageBox msgBox;
+                msgBox.setWindowTitle("File exists");
+                msgBox.setText("File \"" + targetPath + fileInfo.fileName() + "\" already exists! Do you want to overwrite it?");
+                QPushButton *overwriteButton = msgBox.addButton("Overwrite", QMessageBox::YesRole);
+                QPushButton *overwriteAllButton = msgBox.addButton("Overwrite All", QMessageBox::YesRole);
+                QPushButton *skipButton = msgBox.addButton("Skip", QMessageBox::NoRole);
+                QPushButton *skipAllButton = msgBox.addButton("Skip All", QMessageBox::NoRole);
+                msgBox.exec();
+
+                if (msgBox.clickedButton() == (QAbstractButton*)overwriteButton) {
+                    // Перезаписываем только этот файл
+                    QFile::remove(targetPath + fileInfo.fileName());
+                } else if (msgBox.clickedButton() == (QAbstractButton*)overwriteAllButton) {
+                    overwriteAll = true;
+                    QFile::remove(targetPath + fileInfo.fileName());
+                } else if (msgBox.clickedButton() == (QAbstractButton*)skipButton) {
+                    // Пропускаем только этот файл
+                    continue;
+                } else if (msgBox.clickedButton() == (QAbstractButton*)skipAllButton) {
+                    skipAll = true;
+                    continue;
+                }
+            } else if (overwriteAll) {
+                QFile::remove(targetPath + fileInfo.fileName());
+            } else if (skipAll) {
                 continue;
             }
-            if(msgFileExists.clickedButton() == (QAbstractButton*)skipAllButton) {
-                QStringList rest;
-                for(QList<QString>::iterator it = source.begin() + source.indexOf(file); it != source.end(); ++it) {
-                    if(!QFile::exists(*it))
-                        rest.append(*it);
-                }
-                copyFiles(rest, targetPath);
-                break;
-            }
         }
-        else {
-            if(fileInfo->isFile())
-                QFile::copy(file, targetPath + fileInfo->fileName());
-            else {
-                copyDirectory(file, targetPath + fileInfo->fileName());
-            }
+
+        // Копирование файла или директории
+        if (fileInfo.isFile() || fileInfo.isSymLink()) {
+            QFile::copy(source[i], targetPath + fileInfo.fileName());
+        } else if (fileInfo.isDir()) {
+            copyDirectory(source[i], targetPath + fileInfo.fileName());
         }
     }
+
+    // Завершаем прогресс
+    progressDialog.setValue(source.size());
+
+    return true;
 }
 
-void MyFileSystemModel::copyFilesWithOverwriting(const QStringList source, const QString targetPath) {
-    for (const QString &file : source) {
-        QFileInfo fileInfo(file);
-        QString destPath;
-        if(targetPath[targetPath.length()-1] != '/')
-            destPath = targetPath + '/' + fileInfo.fileName();
-        else
-            destPath = targetPath  + fileInfo.fileName();
+bool MyFileSystemModel::copyDirectory(const QString &sourceDirPath, const QString &targetDirPath) {
+    QDir sourceDir(sourceDirPath);
+    QDir targetDir(targetDirPath);
 
-        if (fileInfo.isDir()) {
-            // if it is a dir, remove recursively and copy it
-            if(QDir(destPath).exists())
-                QDir(destPath).removeRecursively();
-            copyDirectory(file, destPath);
-        }
-        else {
-            // if it is a file, remove it before copying
-            QFile::remove(destPath);
-            if (!QFile::copy(file, destPath)) {
-                QMessageBox msg;
-                msg.setText("Error! Something went wrong.");
-                msg.exec();
-            }
-        }
-    }
-}
-
-void MyFileSystemModel::copyDirectory(const QString source, const QString targetPath) {
-    /*QDirIterator it(source, QDirIterator::Subdirectories);
-    QDir dir(source);
-    const int absSourcePathLength = dir.absoluteFilePath(source).length();
-
-    while (it.hasNext()){
-        it.next();
-        const auto fileInfo = it.fileInfo();
-        if(!fileInfo.isHidden()) { //filters dot and dotdot
-            const QString subPathStructure = fileInfo.absoluteFilePath().mid(absSourcePathLength);
-            const QString constructedAbsolutePath = targetPath + subPathStructure;
-
-            if(fileInfo.isDir()){
-                //Create directory in target folder
-                //dir.mkpath(constructedAbsolutePath);
-                QDir(constructedAbsolutePath).mkpath(".");
-            } else if(fileInfo.isFile()) {
-                //Copy File to target directory
-                //Remove file at target location, if it exists, or QFile::copy will fail
-                QFile::remove(constructedAbsolutePath);
-                QFile::copy(fileInfo.absoluteFilePath(), constructedAbsolutePath);
-            }
-        }
-    }*/
-
-    QDir sourceDir(source);
-    QDir targetDir(targetPath);
-
-    // create folder if not exists
+    // Создаем папку назначения, если она не существует
     if (!targetDir.exists()) {
-        targetDir.mkpath(".");
-    }
-
-    QFileInfoList entries = sourceDir.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
-
-    foreach (const QFileInfo &entryInfo, entries) {
-        const QString srcPath = entryInfo.filePath();
-        QString destPath;
-        if(targetPath[targetPath.length()-1] != '/')
-            destPath = targetPath + '/' + entryInfo.fileName();
-        else
-            destPath = targetPath  + entryInfo.fileName();
-
-        if (entryInfo.isDir()) {
-            copyDirectory(srcPath, destPath);
-        }
-        else {
-            if (!QFile::copy(srcPath, destPath)) {
-                QMessageBox msg;
-                msg.setText("Error! Something went wrong.");
-                msg.exec();
-            }
+        if (!QDir().mkdir(targetDirPath)) {
+            QMessageBox::warning(nullptr, "Error", "Failed to create the target directory: " + targetDirPath);
+            return false;
         }
     }
+
+    // Копируем все файлы из исходной папки
+    QFileInfoList fileList = sourceDir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::AllDirs | QDir::Hidden);
+    for (const QFileInfo &fileInfo : fileList) {
+        QString targetFilePath = targetDirPath + "/" + fileInfo.fileName();
+        if (fileInfo.isDir()) {
+            // Рекурсивно копируем вложенные папки
+            copyDirectory(fileInfo.filePath(), targetFilePath);
+        } else {
+            // Копируем файл
+            QFile::copy(fileInfo.filePath(), targetFilePath);
+        }
+    }
+
+    return true;
 }
 
 // Drag and Drop
-
 Qt::DropActions MyFileSystemModel::supportedDropActions() const {
-    //return Qt::CopyAction | Qt::MoveAction;
     return Qt::CopyAction;
 }
 
@@ -184,36 +258,42 @@ Qt::ItemFlags MyFileSystemModel::flags(const QModelIndex &index) const {
 
 QStringList MyFileSystemModel::mimeTypes() const {
     QStringList types;
-    types << "application/vnd.text.list";
+    types << "text/uri-list";
     return types;
 }
 
 QMimeData *MyFileSystemModel::mimeData(const QModelIndexList &indexes) const {
-    QMimeData *mimeData = new QMimeData;
-    QByteArray encodedData;
+    QMimeData *mimeData = new QMimeData();
+    QList<QUrl> urlList;
+    QStringList filePaths;
+    for(const QModelIndex &index : indexes) {
+        QFileInfo info = ((MyFileSystemModel*)index.model())->fileInfo(index);
+        QString filePath = info.absoluteFilePath();
 
-    QDataStream stream(&encodedData, QIODevice::WriteOnly);
-
-    for (const QModelIndex &index : indexes) {
-        if (index.isValid()) {
-            stream << ((MyFileSystemModel*)index.model())->filePath(index);
-        }
+        if(index.data() != "..")
+            filePaths.append(filePath);
     }
-    mimeData->setData("application/vnd.text.list", encodedData);
+    filePaths.removeDuplicates();
+
+    for(QString &file : filePaths) {
+        urlList.append(QUrl::fromLocalFile(file));
+    }
+
+    mimeData->setUrls(urlList);
     return mimeData;
 }
 
 bool MyFileSystemModel::canDropMimeData(const QMimeData *data,
-    Qt::DropAction action, int row, int column, const QModelIndex &parent) const
-{
+    Qt::DropAction action, int row, int column, const QModelIndex &parent) const {
     Q_UNUSED(action);
     Q_UNUSED(row);
     Q_UNUSED(parent);
 
-    if (!data->hasFormat("application/vnd.text.list"))
+    if (!data->hasFormat("text/uri-list") || column > 0)
         return false;
 
-    if (column > 0)
+    QList<QUrl> urlList = data->urls();
+    if(urlList.isEmpty())
         return false;
 
     return true;
@@ -227,50 +307,49 @@ bool MyFileSystemModel::dropMimeData(const QMimeData *data,
     if (action == Qt::IgnoreAction)
         return true;
 
-    QByteArray encodedData = data->data("application/vnd.text.list");
-    QDataStream stream(&encodedData, QIODevice::ReadOnly);
-    QStringList newItems;
+    QList<QUrl> urlList = data->urls();
+    QStringList filePaths;
 
-    while (!stream.atEnd()) {
-        QString text;
-        stream >> text;
-        newItems << text;
+    for(const QUrl &url : urlList)
+        filePaths.append(url.path().remove(0, 1));
+
+    QString destPath = ((MyFileSystemModel*)parent.model())->filePath(parent);
+    QFileInfo *destInfo = new QFileInfo(destPath);
+
+    if(destInfo->isDir()) {
+        if(parent.data().toString() == "..")
+            destPath.chop(2);
+
+        if(destPath.at(destPath.length() - 1) != '/')
+            destPath.append('/');
     }
-    newItems.removeDuplicates();
+    else
+        destPath = destInfo->absolutePath() + "/";
 
-    QString target = ((MyFileSystemModel*)parent.model())->filePath(parent);
-    QFileInfo *targetInfo = new QFileInfo(target);
-
-    if(targetInfo->isFile())
-        target = targetInfo->absolutePath();
-
-    if(target[target.length()-1] != '/')
-        target += '/';
-
-    if(target == (newItems[0].left(newItems[0].lastIndexOf(QChar('/')))+'/'))
+    if(destPath == (filePaths[0].left(filePaths[0].lastIndexOf(QChar('/')))+'/'))
         return false;
-
 
 
     QMessageBox msgCopyConfirm;
     msgCopyConfirm.setWindowTitle("Copy files");
-    msgCopyConfirm.setText("Do you want to copy files (" + QString::number(newItems.length()) + ")?");
+    msgCopyConfirm.setText("Do you want to copy files (" + QString::number(filePaths.length()) + ")?");
     msgCopyConfirm.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
     msgCopyConfirm.setDefaultButton(QMessageBox::Yes);
     msgCopyConfirm.setIcon(QMessageBox::Question);
 
     if(msgCopyConfirm.exec() == QMessageBox::Yes)
-        copyFiles(newItems, target);
+        copyFiles(filePaths, destPath);
 
     return true;
 }
 
 void MyFileSystemModel::dragEnterEvent(QDragEnterEvent *event)
 {
-    if (event->mimeData()->hasFormat("application/vnd.text.list"))
+    if (event->mimeData()->hasFormat("text/uri-list"))
         event->acceptProposedAction();
 }
 void MyFileSystemModel::dropEvent(QDropEvent *event) {
     event->acceptProposedAction();
 }
+
 

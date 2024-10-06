@@ -3,7 +3,7 @@
 #include <QStyleOption>
 #include <QPainter>
 
-// selection cursor rectangle
+// selection cursor rectangle and drop indicator
 void StyleTweaks::drawPrimitive(PrimitiveElement element, const QStyleOption *option,
                    QPainter *painter, const QWidget *widget) const {
     if (element == QStyle::PE_FrameFocusRect) {
@@ -22,7 +22,9 @@ void StyleTweaks::drawPrimitive(PrimitiveElement element, const QStyleOption *op
     if(element == QStyle::PE_IndicatorItemViewItemDrop) {
         QStyleOption opt(*option);
         opt.rect.setLeft(0);
-        if (widget) opt.rect.setRight(widget->width());
+        if(widget)
+            opt.rect.setRight(widget->width());
+
         QProxyStyle::drawPrimitive(element, &opt, painter, widget);
         return;
     }
