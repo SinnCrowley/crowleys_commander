@@ -35,8 +35,8 @@
  *  add full UI customization in settings (colors, fonts, sizes)
  *
 */
-#include <QtGlobal>
 
+#include <QtGlobal>
 #ifdef Q_OS_WIN
 #include "windows.h"
 #include "shobjidl.h"
@@ -65,7 +65,6 @@
 #include "myfilesystemmodel.h"
 #include "mytreeview.h"
 #include "mysortfilterproxymodel.h"
-#include "devicewatcher.h"
 
 bool isCutted = false;
 
