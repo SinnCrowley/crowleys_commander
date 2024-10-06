@@ -36,8 +36,6 @@
  *
 */
 
-// another try to use git
-
 #include <QtGlobal>
 #ifdef Q_OS_WIN
 #include "windows.h"
