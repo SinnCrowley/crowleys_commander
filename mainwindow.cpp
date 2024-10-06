@@ -109,7 +109,6 @@ bool updateShortcuts(QString path) {
 
 // create MyTreeView with Filesystem
 void MainWindow::createView(QTabWidget *tabBar, QString path) {
-    qDebug() << "just not fucking working";
     QVBoxLayout *barLayout = new QVBoxLayout(tabBar->currentWidget());
     barLayout->setSpacing(0);
     barLayout->setContentsMargins(0, 0, 0, 0);
