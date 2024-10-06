@@ -35,7 +35,7 @@
  *  add full UI customization in settings (colors, fonts, sizes)
  *
 */
-
+// can you just work?
 #include <QtGlobal>
 #ifdef Q_OS_WIN
 #include "windows.h"
