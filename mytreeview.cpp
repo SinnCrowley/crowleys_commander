@@ -3,11 +3,17 @@
 
 #include <QApplication>
 #include <QKeyEvent>
+#include <QHeaderView>
 
-MyTreeView::MyTreeView(QWidget *parent) {
+MyTreeView::MyTreeView(const QString path, QWidget *parent) {
     Q_UNUSED(parent);
 
-    setEditTriggers(QAbstractItemView::NoEditTriggers); // Отключаем редактирование по умолчанию
+    sortModel = new MySortFilterProxyModel(path, this);
+    setModel(sortModel);
+    setRootIndex(sortModel->mapFromSource(sortModel->fsModel->index(path)));
+    setUniformRowHeights(true);
+
+    setEditTriggers(QAbstractItemView::NoEditTriggers);
 
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setRootIsDecorated(false);
@@ -17,6 +23,7 @@ MyTreeView::MyTreeView(QWidget *parent) {
     setItemsExpandable(false);
     setContextMenuPolicy(Qt::CustomContextMenu);
     setSelectionMode(QAbstractItemView::ExtendedSelection);
+    setFocusPolicy(Qt::StrongFocus);
 
     setDragEnabled(true);
     setDragDropMode(QAbstractItemView::DragDrop);
@@ -28,18 +35,25 @@ MyTreeView::MyTreeView(QWidget *parent) {
     // change selection cursor to solid rectangle
     setStyle(new StyleTweaks);
     setItemDelegate(new EditRectangleDelegate);
+
+    //header()->moveSection(1, 2);
+    setColumnWidth(1, 65);
+    setColumnWidth(2, 75);
+    setColumnWidth(3, 100);
+    header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    header()->setStretchLastSection(false);
 }
 
 // Disable rename of TreeView element on double click
 bool MyTreeView::edit(const QModelIndex &index, EditTrigger trigger, QEvent *event) {
-    if(trigger == QAbstractItemView::DoubleClicked)
+    if (trigger == QAbstractItemView::DoubleClicked)
         return false;
 
     return QTreeView::edit(index, trigger, event);
 }
 
 void MyTreeView::edit(const QModelIndex &index) {
-    if(index.data().toString() != "..")
+    if (index.data().toString() != "..")
         QTreeView::edit(index);
 }
 
@@ -123,7 +137,7 @@ void MyTreeView::mouseMoveEvent(QMouseEvent *event) {
         return;
     }
 
-    if (!dragging && (event->pos() - startPos).manhattanLength() < QApplication::startDragDistance()) {
+    if (!dragging && (event->pos() - startPos).manhattanLength() < QApplication::startDragDistance()+12) {
         return;
     }
 
@@ -144,8 +158,7 @@ void MyTreeView::mouseMoveEvent(QMouseEvent *event) {
         drag->exec(Qt::CopyAction);
         dragging = false;
 
-        MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-        view->clearSelection();
+        this->clearSelection();
     }
 }
 

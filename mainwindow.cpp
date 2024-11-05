@@ -1,30 +1,17 @@
 /*  TODO
  *
- *  add folders to file search
- *
- *  ускорить загрузку больших папок ( + возможно подгружать внутренности папок в фоне)
- *
- *  навести красоту в коде
- *
- *  навести красоту внешне
- *
- *  add buttons ahead and back
- *
- *  сделать ползунок удаления/копирования/перемещения
- *
- *  add to menu: open this folder in terminal
- *
+ *  ускорить загрузку больших папок (+ возможно подгружать внутренности папок в фоне)
  *
  *
  *  FUTURE
  *
+ *  open with on linux
+ *
+ *  fix progress bars
+ *
  *  on device connection add only new device (do not reload all panel)
  *
- *  on file cutting set the icons a bit transparent
- *
- *  set the hidden files icons different
- *
- *  check the default text editor on Windows and open it by button "Edit"
+ *  on file cutting set the icons a bit transparent (?)
  *
  *  add pack/unpack, settings, group rename, copy/delete/move in background
  *
@@ -33,9 +20,10 @@
  *  add function in settings select or not select file extension while rename
  *
  *  add full UI customization in settings (colors, fonts, sizes)
- *
 */
+
 #include <QtGlobal>
+#include <QDebug>
 #ifdef Q_OS_WIN
 #include "windows.h"
 #include "shobjidl.h"
@@ -56,6 +44,8 @@
 #include <QSettings>
 #include <QDesktopServices>
 #include <QClipboard>
+#include <QStack>
+#include <QtConcurrent/QtConcurrent>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -65,7 +55,6 @@
 #include "mytreeview.h"
 #include "mysortfilterproxymodel.h"
 
-bool isCutted = false;
 
 #ifdef Q_OS_WIN
 bool updateShortcuts(QString path) {
@@ -109,11 +98,28 @@ bool updateShortcuts(QString path) {
 
 // create MyTreeView with Filesystem
 void MainWindow::createView(QTabWidget *tabBar, QString path) {
+    QString folderName;
+    path = QDir(path).absolutePath() + "/";
+    if(path == "//") {
+        path.chop(1);
+        folderName = "/";
+    }
+    else {
+        QDir *dirInfo = new QDir(path);
+        if(dirInfo->isRoot())
+            folderName = path.left(path.indexOf(":") + 1);
+        else
+            folderName = dirInfo->dirName();
+    }
+
+    auto index = tabBar->addTab(new QLabel(folderName), folderName);
+    tabBar->setCurrentIndex(index);
+
     QVBoxLayout *barLayout = new QVBoxLayout(tabBar->currentWidget());
     barLayout->setSpacing(0);
     barLayout->setContentsMargins(0, 0, 0, 0);
 
-    MyTreeView *view = new MyTreeView(this);
+    MyTreeView *view = new MyTreeView(path, this);
     QLineEdit *pathEdit = new QLineEdit(this);
     if(QDir(path).isRoot())
         pathEdit->setText(QDir::toNativeSeparators(QDir(path).absolutePath()));
@@ -124,37 +130,28 @@ void MainWindow::createView(QTabWidget *tabBar, QString path) {
     barLayout->addWidget(pathEdit);
     barLayout->addWidget(view);
 
-    MyFileSystemModel *fsModel = new MyFileSystemModel(this);
-    fsModel->setRootPath(path);
-
-    MySortFilterProxyModel *sortModel = new MySortFilterProxyModel();
-    sortModel->setSourceModel(fsModel);
-
-    view->setModel(sortModel);
-    view->setRootIndex(sortModel->mapFromSource(fsModel->index(path)));
-
-    pathEdit->setObjectName(tabBar->objectName().left(tabBar->objectName().indexOf("B")));
-    view->setObjectName(tabBar->objectName().left(tabBar->objectName().indexOf("B")));
+    pathEdit->setObjectName(tabBar->objectName().left(tabBar->objectName().indexOf("Bar")));
+    view->setObjectName(tabBar->objectName().left(tabBar->objectName().indexOf("Bar")));
 
     connect(view, SIGNAL(activated(QModelIndex)), this, SLOT(view_activated(QModelIndex)));
     connect(view, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextMenu_requested(QPoint)));
     connect(pathEdit, SIGNAL(returnPressed()), this, SLOT(pathEdit_returnPressed()));
-    connect(view->header(), SIGNAL(sectionClicked(int)), this, SLOT(viewHeader_clicked(int)));
-
-    view->header()->moveSection(1, 2);
-    view->setColumnWidth(1, 65);
-    view->setColumnWidth(2, 75);
-    view->setColumnWidth(3, 100);
-    view->header()->setSectionResizeMode(0, QHeaderView::Stretch);
-    view->header()->setStretchLastSection(false);
+    //connect(view->header(), SIGNAL(sectionClicked(int)), this, SLOT(viewHeader_clicked(int)));
 
     diskStatusUpdate(tabBar);
 
+    // create history stacks
     QSettings *settings = new QSettings("./history.ini", QSettings::IniFormat);
-    if(view->objectName() == "left")
+    if(view->objectName() == "left") {
         settings->beginGroup("left_panel");
-    else
+        historyBackLeft.append(QStack<QString>());
+        historyForwardLeft.append(QStack<QString>());
+    }
+    else {
         settings->beginGroup("right_panel");
+        historyBackRight.append(QStack<QString>());
+        historyForwardRight.append(QStack<QString>());
+    }
 
     int sortingColumn = settings->value("sort_order_column").toInt();
 
@@ -162,6 +159,9 @@ void MainWindow::createView(QTabWidget *tabBar, QString path) {
         view->sortByColumn(sortingColumn, Qt::AscendingOrder);
     else
         view->sortByColumn(sortingColumn, Qt::DescendingOrder);
+
+    delete settings;
+
 
 #ifdef Q_OS_WIN
     // check shortcuts and repair if is crashed with Windows API
@@ -201,10 +201,26 @@ void MainWindow::directoryChange(QString path) {
 
     MyTreeView *view = tabWidget->currentWidget()->findChild<MyTreeView*>();
     QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*) sortModel->sourceModel();
+
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
+
+    if(QDir(path).isRoot())
+        fsModel->setFilter(QDir::AllDirs | QDir::NoDotAndDotDot | QDir::Files | QDir::System);
+    else {
+        if(fsModel->filter().testFlag(QDir::NoDotAndDotDot))
+            fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::System);
+    }
+
+    if(!isNavTriggered) {
+        addToHistory(fsModel->rootPath(), tabWidget->currentIndex(), qApp->focusWidget()->objectName());
+    }
+    isNavTriggered = false;
+
     fsModel->setRootPath(path);
     view->setRootIndex(sortModel->mapFromSource(fsModel->index(path)));
+
+    qApp->processEvents();
 
     tabWidget->setTabText(tabWidget->currentIndex(), folderName);
 
@@ -227,14 +243,14 @@ void MainWindow::directoryChange(QString path) {
     if(isUp) {
         // set cursor on the previous folder
         previousPath.chop(2);
-        connect(view->model(), &QAbstractItemModel::layoutChanged, this, [view, sortModel, fsModel, previousPath]() {
+        connect(sortModel, &QAbstractItemModel::layoutChanged, this, [view, sortModel, fsModel, previousPath]() {
             view->selectionModel()->setCurrentIndex(sortModel->mapFromSource(fsModel->index(previousPath)), QItemSelectionModel::NoUpdate);
             view->scrollToFile();
         });
     }
     else {
         // set cursor on the first row
-        connect(view->model(), &QAbstractItemModel::layoutChanged, this, [view, sortModel, fsModel, path]() {
+        connect(sortModel, &QAbstractItemModel::layoutChanged, this, [view, sortModel, fsModel, path]() {
             QModelIndex rootIndex = sortModel->mapFromSource(fsModel->index(path));
             if (rootIndex.isValid() && view->model()->rowCount(rootIndex) > 0) {
                 QModelIndex firstChildIndex = view->model()->index(0, 0, rootIndex);
@@ -276,6 +292,7 @@ void MainWindow::tabsUpdate(QTabWidget *tabWidget) {
         settings->setValue(QString::number(i) + "_path", path);
     }
     settings->endGroup();
+    delete settings;
 }
 
 // update disk status bar
@@ -284,8 +301,8 @@ void MainWindow::diskStatusUpdate(QTabWidget *tabWidget) {
         return;
 
     MyTreeView *view = tabWidget->currentWidget()->findChild<MyTreeView*>();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
     QString path = fsModel->rootPath();
     QStorageInfo storageInfo = QStorageInfo(path);
 
@@ -350,26 +367,26 @@ void MainWindow::clearLayout(QLayout *layout) {
 }
 
 // get the list of selected files for file operations
-void MainWindow::getFileList(QStringList &files) {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+QStringList MainWindow::getFileList() {
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return QStringList();
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     QStringList filePaths;
+    QModelIndexList selected = view->selectionModel()->selectedIndexes();
 
-    if(view->selectionModel()->selectedIndexes().isEmpty()) {
+    if(selected.isEmpty()) {
         QModelIndex fsModelIndex = sortModel->mapToSource(view->selectionModel()->currentIndex());
         QFileInfo info = fsModel->fileInfo(fsModelIndex);
 
         if(info.fileName() == "..")
-            return;
+            return QStringList();
         filePaths.append(info.absoluteFilePath());
     }
     else {
-        foreach(const QModelIndex &index, view->selectionModel()->selectedIndexes()) {
+        foreach(const QModelIndex &index, selected) {
             QModelIndex fsModelIndex = sortModel->mapToSource(index);
             QFileInfo info = fsModel->fileInfo(fsModelIndex);
 
@@ -379,7 +396,7 @@ void MainWindow::getFileList(QStringList &files) {
         filePaths.removeDuplicates();
     }
 
-    files = filePaths;
+    return filePaths;
 }
 
 // update list of disks on device connect/disconnect
@@ -448,14 +465,12 @@ void MainWindow::deviceUpdate(const QString &device) {
 #else
             struct udev *udev = udev_new();
             if (!udev) {
-                qWarning() << "Cannot create udev context";
                 continue;
             }
 
             struct udev_enumerate *enumerate = udev_enumerate_new(udev);
             if (!enumerate) {
                 udev_unref(udev);
-                qWarning() << "Cannot create udev enumerate";
                 continue;
             }
 
@@ -526,9 +541,11 @@ void MainWindow::deviceUpdate(const QString &device) {
             rightButton->setFocusPolicy(Qt::ClickFocus);
         }
     }
-    QSpacerItem *spacer = new QSpacerItem(20, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
-    ui->diskButtonsLeftLayout->addItem(spacer);
-    ui->diskButtonsRightLayout->addItem(spacer);
+    QSpacerItem *spacerLeft = new QSpacerItem(20, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+    QSpacerItem *spacerRight = new QSpacerItem(20, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+
+    ui->diskButtonsLeftLayout->addItem(spacerLeft);
+    ui->diskButtonsRightLayout->addItem(spacerRight);
 
     // correct width of disk list view
     int maxWidth = 0;
@@ -546,33 +563,59 @@ void MainWindow::deviceUpdate(const QString &device) {
     ui->diskListRight->view()->setMinimumWidth(maxWidth);
 }
 
+// create configs on first run
+void MainWindow::initialize() {
+    QFile history("./history.ini");
+    if(!history.exists()) {
+        history.open(QIODevice::Append);
+        QString historyData;
+        QString fileName;
+#ifdef Q_OS_WIN
+        fileName = "templates/history_windows.ini";
+#else
+        fileName = "templates/history_linux.ini";
+#endif
+        QFile file(fileName);
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
+            QTextStream stream(&file);
+            while (!stream.atEnd()){
+                historyData = stream.readAll();
+            }
+        }
+        file.close();
+        history.write(historyData.toStdString().c_str());
+        history.close();
+    }
+
+    QFile config("./config.ini");
+    QString configData;
+    if(!config.exists()) {
+        config.open(QIODevice::Append);
+        QFile file("templates/config.ini");
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
+            QTextStream stream(&file);
+            while (!stream.atEnd()){
+                configData = stream.readAll();
+            }
+        }
+        config.write(configData.toStdString().c_str());
+        config.close();
+    }
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , deviceWatcher(new DeviceWatcher(this)) {
     ui->setupUi(this);
 
-    // initialization on first run
-    QFile history = QFile("./history.ini");
-    if(!history.exists()) {
-        history.open(QIODevice::Append);
+    // event filer for back/forward buttons click processing
+    qApp->installEventFilter(this);
 
-        QString historyData = "[left_panel]\nsort_order_column=0\nsort_direction=asc\n\n \
-[right_panel]\nsort_order_column=0\nsort_direction=asc\n\n \
-[left_tabs]\nactive_tab=0\n0_path=%1\n\n \
-[right_tabs]\nactive_tab=0\n0_path=%1";
-#ifdef Q_OS_WIN
-        history.write(historyData.arg("C:\\").toStdString().c_str());
-#else
-        history.write(historyData.arg("/").toStdString().c_str());
-#endif
-        history.close();
-    }
+    initialize();
 
     connect(deviceWatcher, &DeviceWatcher::deviceConnected, this, &MainWindow::deviceUpdate);
     connect(deviceWatcher, &DeviceWatcher::deviceDisconnected, this, &MainWindow::deviceUpdate);
-
-    deviceUpdate("");
 
     QPushButton *leftUpButton = new QPushButton(this);
     QPushButton *rightUpButton = new QPushButton(this);
@@ -593,7 +636,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(rightUpButton, SIGNAL(clicked()), this, SLOT(upBtn_clicked()));
 
 
-    QTabWidget *leftBar = new QTabWidget;
+    QTabWidget *leftBar = new QTabWidget(this);
     leftBar->setObjectName("leftBar");
     leftBar->setMovable(true);
     ui->leftPanelLayout->addWidget(leftBar);
@@ -601,32 +644,20 @@ MainWindow::MainWindow(QWidget *parent)
     connect(leftBar, SIGNAL(tabBarDoubleClicked(int)), this, SLOT(tabBar_doubleClicked(int)));
     connect(leftBar, SIGNAL(currentChanged(int)), this, SLOT(tabBar_indexChanged(int)));
 
-    QString folderName;
     QSettings *settings = new QSettings("./history.ini", QSettings::IniFormat);
     settings->beginGroup("left_tabs");
     QStringList keys = settings->childKeys();
     int idx = settings->value("active_tab").toInt();
     foreach(const QString key, keys) {
-        if(key[0].isDigit()){
-            if(QDir(settings->value(key).toString()).isRoot()) {
-                folderName = QDir(settings->value(key).toString()).absoluteFilePath(settings->value(key).toString());
-                if(folderName != "/")
-                    folderName.chop(1);
-            }
-            else
-                folderName = QDir(settings->value(key).toString()).dirName();
-
-            auto index = leftBar->addTab(new QLabel(folderName), folderName);
-            leftBar->setCurrentIndex(index);
+        if(key[0].isDigit())
             createView(leftBar, settings->value(key).toString());
-        }
     }
     leftBar->setCurrentIndex(idx);
     settings->endGroup();
 
     diskStatusUpdate(leftBar);
 
-    QTabWidget *rightBar = new QTabWidget;
+    QTabWidget *rightBar = new QTabWidget(this);
     rightBar->setObjectName("rightBar");
     rightBar->setMovable(true);
     ui->rightPanelLayout->addWidget(rightBar);
@@ -639,18 +670,8 @@ MainWindow::MainWindow(QWidget *parent)
     keys = settings->childKeys();
     idx = settings->value("active_tab").toInt();
     foreach(const QString key, keys) {
-        if(key[0].isDigit()){
-            if(QDir(settings->value(key).toString()).isRoot()) {
-                folderName = QDir(settings->value(key).toString()).absoluteFilePath(settings->value(key).toString());
-                folderName.chop(1);
-            }
-            else
-                folderName = QDir(settings->value(key).toString()).dirName();
-
-            auto index = rightBar->addTab(new QLabel(folderName), folderName);
-            rightBar->setCurrentIndex(index);
+        if(key[0].isDigit())
             createView(rightBar, settings->value(key).toString());
-        }
     }
     rightBar->setCurrentIndex(idx);
     settings->endGroup();
@@ -666,14 +687,14 @@ MainWindow::MainWindow(QWidget *parent)
     if(settings->value("show_hidden").toInt()) {
         for(int i = 0; i < leftBar->count(); i++) {
             view = leftBar->widget(i)->findChild<MyTreeView*>();
-            sortModel = (MySortFilterProxyModel*) view->model();
-            fsModel = (MyFileSystemModel*) sortModel->sourceModel();
+            sortModel = view->sortModel;
+            fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::Hidden);
         }
         for(int i = 0; i < rightBar->count(); i++) {
             view = rightBar->widget(i)->findChild<MyTreeView*>();
-            sortModel = (MySortFilterProxyModel*) view->model();
-            fsModel = (MyFileSystemModel*) sortModel->sourceModel();
+            sortModel = view->sortModel;
+            fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::Hidden);
         }
     }
@@ -688,23 +709,28 @@ MainWindow::MainWindow(QWidget *parent)
     leftBar->setFocusPolicy(Qt::NoFocus);
     rightBar->setFocusPolicy(Qt::NoFocus);
 
+    deviceUpdate("");
+
     QShortcut *editShortcut = new QShortcut(QKeySequence(Qt::Key_F4), this);
-    QObject::connect(editShortcut, SIGNAL(activated()), this, SLOT(on_editBtn_clicked()));
+    connect(editShortcut, SIGNAL(activated()), this, SLOT(on_editBtn_clicked()));
 
     QShortcut *copyShortcut = new QShortcut(QKeySequence(Qt::Key_F5), this);
-    QObject::connect(copyShortcut, SIGNAL(activated()), this, SLOT(on_copyBtn_clicked()));
+    connect(copyShortcut, SIGNAL(activated()), this, SLOT(on_copyBtn_clicked()));
 
     QShortcut *moveShortcut = new QShortcut(QKeySequence(Qt::Key_F6), this);
-    QObject::connect(moveShortcut, SIGNAL(activated()), this, SLOT(on_moveBtn_clicked()));
+    connect(moveShortcut, SIGNAL(activated()), this, SLOT(on_moveBtn_clicked()));
 
     QShortcut *folderShortcut = new QShortcut(QKeySequence(Qt::Key_F7), this);
-    QObject::connect(folderShortcut, SIGNAL(activated()), this, SLOT(on_folderBtn_clicked()));
+    connect(folderShortcut, SIGNAL(activated()), this, SLOT(on_folderBtn_clicked()));
 
     QShortcut *deleteShortcut = new QShortcut(QKeySequence(Qt::Key_F8), this);
-    QObject::connect(deleteShortcut, SIGNAL(activated()), this, SLOT(on_deleteBtn_clicked()));
+    connect(deleteShortcut, SIGNAL(activated()), this, SLOT(on_deleteBtn_clicked()));
 }
 
 MainWindow::~MainWindow() {
+    disconnect();
+
+    delete deviceWatcher;
     delete ui;
 }
 
@@ -756,27 +782,36 @@ void MainWindow::pathEdit_returnPressed() {
     else
         tabWidget = (QTabWidget*) ui->rightPanel->findChild<QTabWidget*>();
 
-    MyTreeView *view = (MyTreeView*) tabWidget->currentWidget()->findChild<MyTreeView*>();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
+    MyTreeView *view = tabWidget->currentWidget()->findChild<MyTreeView*>();
+    MySortFilterProxyModel *sortModel = view->sortModel;
 
+    QFileInfo info(inputPath);
     pathEdit->clearFocus();
+
+    QString prevPath = sortModel->fsModel->rootPath();
+    if(prevPath.back() != '/')
+        prevPath.append('/');
+
     if(QDir(inputPath).exists() && !inputPath.isEmpty()){
-        pathEdit->setFocus();
-        directoryChange(inputPath);
+        if(info.isReadable() && info.isExecutable()) {
+            pathEdit->setFocus();
+            directoryChange(inputPath);
+        }
+        else {
+            pathEdit->setText(QDir::toNativeSeparators(prevPath));
+            QMessageBox::warning(this, "Access denied", "Do not have access rights to the directory.");
+        }
     }
     else {
-        QString prevPath = ((MyFileSystemModel*)sortModel->sourceModel())->rootPath();
-        if(prevPath.back() != '/')
-            prevPath.append('/');
         pathEdit->setText(QDir::toNativeSeparators(prevPath));
-        return;
+        view->setFocus();
     }
 }
 
 void MainWindow::view_activated(const QModelIndex &index) {
-    MyTreeView *view = (MyTreeView*) sender();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (sender());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     QModelIndex fsModelIndex = sortModel->mapToSource(index);
 
@@ -790,25 +825,38 @@ void MainWindow::view_activated(const QModelIndex &index) {
     }
 #endif
 
-    if(info.isDir())
-        directoryChange(path);
+    if(info.isDir()) {
+        if(info.isReadable() && info.isExecutable())
+            directoryChange(path);
+        else
+            QMessageBox::warning(this, "Access denied", "Do not have access rights to the directory.");
+    }
     else
         QDesktopServices::openUrl(QUrl::fromLocalFile(path));
 }
 
 void MainWindow::tabBar_doubleClicked(int index) {
-    QTabWidget *tabWidget = (QTabWidget*) sender();
+    QTabWidget *tabWidget = static_cast<QTabWidget*> (sender());
     if(tabWidget->count() > 1) {
         tabWidget->removeTab(index);
         tabsUpdate(tabWidget);
         diskStatusUpdate(tabWidget);
+
+        if(tabWidget->objectName() == "leftBar") {
+            historyBackLeft.remove(index);
+            historyForwardLeft.remove(index);
+        }
+        else {
+            historyBackRight.remove(tabWidget->currentIndex());
+            historyForwardRight.remove(tabWidget->currentIndex());
+        }
     }
     (tabWidget->currentWidget()->findChild<MyTreeView*>())->setFocus();
 }
 
 void MainWindow::tabBar_indexChanged(int index){
     Q_UNUSED(index);
-    QTabWidget *tabWidget = (QTabWidget*) sender();
+    QTabWidget *tabWidget = static_cast<QTabWidget*> (sender());
     if(tabWidget->currentWidget()->findChild<MyTreeView*>()) {
         MyTreeView *view = tabWidget->currentWidget()->findChild<MyTreeView*>();
         tabsUpdate(tabWidget);
@@ -819,12 +867,11 @@ void MainWindow::tabBar_indexChanged(int index){
 }
 
 void MainWindow::contextMenu_requested(const QPoint &point) {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     QModelIndex index = sortModel->mapToSource(view->indexAt(point));
     QString filePath = fsModel->filePath(index);
@@ -832,7 +879,7 @@ void MainWindow::contextMenu_requested(const QPoint &point) {
     if(QFileInfo(filePath).fileName() == "..")
         return;
 
-    QMenu *menu = new QMenu();
+    QMenu *menu = new QMenu(this);
 
     QAction *openAction = new QAction("Open");
     openAction->setShortcut(QKeySequence(Qt::Key_Return));
@@ -862,8 +909,8 @@ void MainWindow::contextMenu_requested(const QPoint &point) {
     newFileAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_N));
     QAction *newFolderAction = new QAction("New folder");
     newFolderAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
-    QAction *openTerminal = new QAction("Open Terminal in this directory.");
-    openTerminal->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
+    QAction *openTerminalAction = new QAction("Open Terminal in this directory.");
+    openTerminalAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
 
     connect(openAction, SIGNAL(triggered()), this, SLOT(on_actionOpen_selected_file_triggered()));
 
@@ -877,6 +924,7 @@ void MainWindow::contextMenu_requested(const QPoint &point) {
     connect(createShortcutAction, SIGNAL(triggered()), this, SLOT(on_actionCreate_Shortcut_triggered()));
     connect(newFileAction, SIGNAL(triggered()), this, SLOT(on_actionNew_File_triggered()));
     connect(newFolderAction, SIGNAL(triggered()), this, SLOT(on_actionCreate_Folder_triggered()));
+    connect(openTerminalAction, SIGNAL(triggered()), this, SLOT(open_Terminal_triggered()));
     menu->addAction(openAction);
     menu->addAction(editAction);
     menu->addSeparator();
@@ -892,13 +940,15 @@ void MainWindow::contextMenu_requested(const QPoint &point) {
     menu->addSeparator();
     menu->addAction(newFileAction);
     menu->addAction(newFolderAction);
+    menu->addSeparator();
+    menu->addAction(openTerminalAction);
 
     menu->popup(view->viewport()->mapToGlobal(point));
 }
 
 void MainWindow::viewHeader_clicked(int localIndex) {
-    QHeaderView *header = (QHeaderView*) sender();
-    MyTreeView *view = (MyTreeView*) header->parent();
+    QHeaderView *header = static_cast<QHeaderView*> (sender());
+    MyTreeView *view = static_cast<MyTreeView*> (header->parent());
 
     QSettings *settings = new QSettings("./history.ini", QSettings::IniFormat);
     if(view->objectName() == "left")
@@ -926,12 +976,11 @@ void MainWindow::viewHeader_clicked(int localIndex) {
 
 // file menu actions
 void MainWindow::on_actionNew_File_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     bool ok = false;
     QString filename = QInputDialog::getText(this, tr("New File"), tr("Enter the file name:"), QLineEdit::Normal, "", &ok);
@@ -952,20 +1001,18 @@ void MainWindow::on_actionNew_File_triggered() {
 }
 
 void MainWindow::on_actionOpen_selected_file_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
     emit view->activated(view->currentIndex());
 }
 
 void MainWindow::on_actionOpen_with_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     QModelIndex fsModelIndex = sortModel->mapToSource(view->currentIndex());
     QFileInfo info = fsModel->fileInfo(fsModelIndex);
@@ -1040,16 +1087,16 @@ void MainWindow::on_actionOpen_with_triggered() {
 }
 
 void MainWindow::on_actionRename_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
     view->edit(view->currentIndex());
 }
 
 void MainWindow::on_actionRemove_triggered() {
-    QStringList filePaths;
-    getFileList(filePaths);
+    QStringList filePaths = getFileList();
+    if (filePaths.isEmpty())
+        return;
 
     QMessageBox msgRemoveConfirm;
     msgRemoveConfirm.setWindowTitle("Delete files");
@@ -1059,15 +1106,28 @@ void MainWindow::on_actionRemove_triggered() {
     msgRemoveConfirm.setIcon(QMessageBox::Question);
 
     if(msgRemoveConfirm.exec() == QMessageBox::Yes) {
+        QProgressDialog *progressDialog = new QProgressDialog("Removing files...", "Cancel", 0, filePaths.length());
+        progressDialog->setWindowModality(Qt::WindowModal);
+        progressDialog->setWindowTitle("Remove Progress");
+        progressDialog->setMinimumDuration(50);
+
+        int count = 0;
+        progressDialog->open();
         foreach(const QString &file, filePaths) {
             QFile(file).moveToTrash();
+            count++;
+            progressDialog->setValue(count);
         }
+
+        progressDialog->setValue(filePaths.length());
+        progressDialog->close();
     }
 }
 
 void MainWindow::on_actionRemove_permanently_triggered() {
-    QStringList filePaths;
-    getFileList(filePaths);
+    QStringList filePaths = getFileList();
+    if (filePaths.isEmpty())
+        return;
 
     QMessageBox msgRemoveConfirm;
     msgRemoveConfirm.setWindowTitle("Permanent deletion");
@@ -1077,13 +1137,31 @@ void MainWindow::on_actionRemove_permanently_triggered() {
     msgRemoveConfirm.setIcon(QMessageBox::Question);
 
     if (msgRemoveConfirm.exec() == QMessageBox::Yes) {
+        QProgressDialog *progressDialog = new QProgressDialog("Removing files permanently...", "Cancel", 0, filePaths.length());
+        progressDialog->setWindowModality(Qt::WindowModal);
+        progressDialog->setWindowTitle("Remove Progress");
+        progressDialog->setMinimumDuration(50);
+
+        int total = filePaths.length();
+        int count = 0;
+
+        progressDialog->open();
+
         foreach(const QString &file, filePaths) {
             QFileInfo fileInfo(file);
+
             if (fileInfo.isWritable()) {
-                if (fileInfo.isDir() && !fileInfo.isSymLink())
+                if (fileInfo.isDir() && !fileInfo.isSymLink()) {
                     QDir(file).removeRecursively();
-                else
+                    total += QDir(file).count();
+                    count += QDir(file).count();
+                    progressDialog->setMaximum(total);
+                }
+                else {
                     QFile(file).remove();
+                    count++;
+                }
+                progressDialog->setValue(count);
             } else { // if a file has read-only attribute
                 QMessageBox readOnlyMsg;
                 readOnlyMsg.setWindowTitle("Read-only file");
@@ -1097,24 +1175,31 @@ void MainWindow::on_actionRemove_permanently_triggered() {
                     // Remove read-only attribute
                     fileObject.setPermissions(fileObject.permissions() | QFile::WriteOwner);
                     // Remove the file
-                    if (fileInfo.isDir())
+                    if (fileInfo.isDir()) {
                         QDir(file).removeRecursively();
-                    else
+                        total += QDir(file).count();
+                        count += QDir(file).count();
+                        progressDialog->setMaximum(total);
+                    } else {
                         fileObject.remove();
+                        count++;
+                    }
+                    progressDialog->setValue(count);
                 }
             }
         }
+        progressDialog->setValue(total);
+        progressDialog->close();
     }
 }
 
 void MainWindow::on_actionCreate_Folder_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
 
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     bool ok = false;
     QString foldername = QInputDialog::getText(this, tr("New Folder"), tr("Enter the folder name:"), QLineEdit::Normal, "", &ok);
@@ -1135,12 +1220,11 @@ void MainWindow::on_actionCreate_Folder_triggered() {
 }
 
 void MainWindow::on_actionCreate_Shortcut_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     QModelIndex fsModelIndex = sortModel->mapToSource(view->selectionModel()->currentIndex());
     QString filePath = fsModel->filePath(fsModelIndex);
@@ -1163,8 +1247,9 @@ void MainWindow::on_actionCreate_Shortcut_triggered() {
 }
 
 void MainWindow::on_actionCut_triggered() {
-    QStringList filePaths;
-    getFileList(filePaths);
+    QStringList filePaths = getFileList();
+    if (filePaths.isEmpty())
+        return;
 
     QClipboard *clipboard = QApplication::clipboard();
     QMimeData *data = new QMimeData();
@@ -1181,8 +1266,9 @@ void MainWindow::on_actionCut_triggered() {
 }
 
 void MainWindow::on_actionCopy_triggered() {
-    QStringList filePaths;
-    getFileList(filePaths);
+    QStringList filePaths = getFileList();
+    if (filePaths.isEmpty())
+        return;
 
     isCutted = false;
 
@@ -1197,14 +1283,13 @@ void MainWindow::on_actionCopy_triggered() {
 }
 
 void MainWindow::on_actionPaste_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
     QClipboard *clipboard = QApplication::clipboard();
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     const QMimeData *data = clipboard->mimeData();
     QList<QUrl> urlList = data->urls();
@@ -1220,90 +1305,78 @@ void MainWindow::on_actionPaste_triggered() {
 
     QModelIndex fsModelIndex = sortModel->mapToSource(view->currentIndex());
     QFileInfo destInfo = fsModel->fileInfo(fsModelIndex);
-    QString destPath = fsModel->filePath(fsModelIndex);
+    QString targetPath = fsModel->filePath(fsModelIndex);
 
     if(destInfo.isDir()) {
         if(fsModelIndex.data().toString() == "..")
-            destPath.chop(2);
+            targetPath.chop(2);
 
-        if(destPath.at(destPath.length() - 1) != '/')
-            destPath.append('/');
+        if(targetPath.at(targetPath.length() - 1) != '/')
+            targetPath.append('/');
     }
     else
-        destPath = destInfo.absolutePath() + "/";
+        targetPath = destInfo.absolutePath() + "/";
 
     // if files was cutted, then copy with removing or move
     if(isCutted) {
         // if storage is the same, then just move file, otherwise copy with removing
-        if(QStorageInfo(filePaths[0]).device() == QStorageInfo(destPath).device()) {
+        if(QStorageInfo(filePaths[0]).device() == QStorageInfo(targetPath).device()) {
+            bool skipAll = false;
+            bool overwriteAll = false;
             for(QString &file : filePaths) {
                 QFileInfo fileInfo = QFileInfo(file);
 
                 // check if moved folder is not parent of destination folder
-                if(fileInfo.isDir() && destPath.contains(file)) {
+                if(fileInfo.isDir() && targetPath.contains(file)) {
                     QMessageBox::warning(nullptr, "Error", "The source directory is the parent of the target directory!");
                     return;
                 }
 
                 // check if moved file/folder is not destination file/folder
-                if(file == destPath + fileInfo.fileName()) {
+                if(file == targetPath + fileInfo.fileName()) {
                     QMessageBox::warning(nullptr, "Error", "It is not possible to move file or folder to itself!");
                     return;
                 }
 
-                if(QFileInfo::exists(destPath + fileInfo.fileName())) {
-                    QMessageBox msgFileExists;
-                    msgFileExists.setIcon(QMessageBox::Question);
-                    msgFileExists.setWindowTitle("File exists");
-                    msgFileExists.setText("File \"" + destPath + fileInfo.fileName() +
-                                          "\" already exists! Do you want to overwrite the file?");
-                    QPushButton *overwriteButton = msgFileExists.addButton("Overwrite", QMessageBox::YesRole);
-                    QPushButton *overwriteAllButton = msgFileExists.addButton("Overwrite All", QMessageBox::YesRole);
-                    QPushButton *skipButton = msgFileExists.addButton("Skip", QMessageBox::NoRole);
-                    QPushButton *skipAllButton = msgFileExists.addButton("Skip All", QMessageBox::NoRole);
-                    msgFileExists.exec();
+                if(QFileInfo::exists(targetPath + fileInfo.fileName())) {
+                    if (!overwriteAll && !skipAll) {
+                        QMessageBox msgBox;
+                        msgBox.setWindowTitle("File exists");
+                        msgBox.setText("File \"" + targetPath + fileInfo.fileName() + "\" already exists! Do you want to overwrite it?");
+                        QPushButton *overwriteButton = msgBox.addButton("Overwrite", QMessageBox::YesRole);
+                        QPushButton *overwriteAllButton = msgBox.addButton("Overwrite All", QMessageBox::YesRole);
+                        QPushButton *skipButton = msgBox.addButton("Skip", QMessageBox::NoRole);
+                        QPushButton *skipAllButton = msgBox.addButton("Skip All", QMessageBox::NoRole);
+                        msgBox.exec();
 
-                    if(msgFileExists.clickedButton() == (QAbstractButton*)overwriteButton) {
-                        QFile::remove(destPath + fileInfo.fileName());
-                        QFile::rename(file, destPath + fileInfo.fileName());
-                    }
-                    if(msgFileExists.clickedButton() == (QAbstractButton*)overwriteAllButton) {
-                        QStringList rest;
-                        for(QList<QString>::iterator it = filePaths.begin() + filePaths.indexOf(file); it != filePaths.end(); ++it)
-                            rest.append(*it);
-                        for(QString &path : rest) {
-                            QFile::remove(destPath + QFileInfo(path).fileName());
-                            QFile::rename(path, destPath + QFileInfo(path).fileName());
+                        if (msgBox.clickedButton() == (QAbstractButton*)overwriteButton) {
+                            QFile::remove(targetPath + fileInfo.fileName());
+                        } else if (msgBox.clickedButton() == (QAbstractButton*)overwriteAllButton) {
+                            overwriteAll = true;
+                            QFile::remove(targetPath + fileInfo.fileName());
+                        } else if (msgBox.clickedButton() == (QAbstractButton*)skipButton) {
+                            continue;
+                        } else if (msgBox.clickedButton() == (QAbstractButton*)skipAllButton) {
+                            skipAll = true;
+                            continue;
                         }
-                        break;
-                    }
-                    if(msgFileExists.clickedButton() == (QAbstractButton*)skipButton) {
+                    } else if (overwriteAll) {
+                        QFile::remove(targetPath + fileInfo.fileName());
+                    } else if (skipAll) {
                         continue;
-                    }
-                    if(msgFileExists.clickedButton() == (QAbstractButton*)skipAllButton) {
-                        QStringList rest;
-                        for(QList<QString>::iterator it = filePaths.begin() + filePaths.indexOf(file); it != filePaths.end(); ++it) {
-                            if(!QFile::exists(*it))
-                                rest.append(*it);
-                        }
-                        for(QString &path : rest) {
-                            QFile::remove(destPath + QFileInfo(path).fileName());
-                            QFile::rename(path, destPath + QFileInfo(path).fileName());
-                        }
-                        break;
                     }
                 }
                 else {
-                    QFile::rename(file, destPath + fileInfo.fileName());
+                    QFile::rename(file, targetPath + fileInfo.fileName());
                 }
 
             }
         }
         else {
-            fsModel->copyFiles(filePaths, destPath);
+            fsModel->copyFiles(filePaths, targetPath);
             for(QString &file : filePaths) {
                 QFileInfo fileInfo = QFileInfo(file);
-                if(fileInfo.exists() && QFileInfo::exists(destPath + fileInfo.fileName())) { // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if(fileInfo.exists() && QFileInfo::exists(targetPath + fileInfo.fileName())) {
                     if(fileInfo.isDir() && !fileInfo.isSymLink())
                         QDir(file).removeRecursively();
                     else
@@ -1314,7 +1387,7 @@ void MainWindow::on_actionPaste_triggered() {
     }
     //else just copy files
     else
-        fsModel->copyFiles(filePaths, destPath);
+        fsModel->copyFiles(filePaths, targetPath);
 
     isCutted = false;
     view->clearSelection();
@@ -1323,10 +1396,9 @@ void MainWindow::on_actionPaste_triggered() {
 
 // selection menu actions
 void MainWindow::on_actionSelect_file_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
     QModelIndex index = view->currentIndex();
 
     if (view->selectionModel()->isSelected(index)) {
@@ -1337,10 +1409,9 @@ void MainWindow::on_actionSelect_file_triggered() {
 }
 
 void MainWindow::on_actionSelect_all_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
     view->selectAll();
 
     QModelIndex dotdot = view->model()->index(0, 0, view->rootIndex());
@@ -1350,43 +1421,28 @@ void MainWindow::on_actionSelect_all_triggered() {
 }
 
 void MainWindow::on_actionRemove_selection_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
     view->clearSelection();
 }
 
 
 // tab menu actions
 void MainWindow::on_actionCreate_a_new_tab_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*) sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
 
-    QTabWidget *tabWidget = (QTabWidget*) view->parent()->parent()->parent();
-    QString path = fsModel->rootPath();
-    QString folderName;
-    if(QDir(path).isRoot()) {
-        folderName = QDir(path).absoluteFilePath(path);
-        folderName.chop(1);
-    }
-    else
-        folderName = QDir(path).dirName();
+    QTabWidget *tabWidget = static_cast<QTabWidget*> (view->parent()->parent()->parent());
+    QString path = view->sortModel->fsModel->rootPath();
 
-    auto index = tabWidget->addTab(new QLabel(folderName), folderName);
-    tabWidget->setCurrentIndex(index);
     createView(tabWidget, path);
-
     tabsUpdate(tabWidget);
 }
 
 void MainWindow::on_actionClose_this_tab_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
     QTabWidget *tabWidget;
     if(qApp->focusWidget()->objectName() == "left")
@@ -1399,23 +1455,51 @@ void MainWindow::on_actionClose_this_tab_triggered() {
 
         tabsUpdate(tabWidget);
         diskStatusUpdate(tabWidget);
+
+        if(qApp->focusWidget()->objectName() == "left") {
+            historyBackLeft.remove(tabWidget->currentIndex());
+            historyForwardLeft.remove(tabWidget->currentIndex());
+        }
+        else {
+            historyBackRight.remove(tabWidget->currentIndex());
+            historyForwardRight.remove(tabWidget->currentIndex());
+        }
     }
     (tabWidget->currentWidget()->findChild<MyTreeView*>())->setFocus();
 }
 
 void MainWindow::on_actionClose_all_tabs_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
     QTabWidget *tabWidget;
+
     if(qApp->focusWidget()->objectName() == "left")
         tabWidget = ui->leftPanel->findChild<QTabWidget*>();
     else
         tabWidget = ui->rightPanel->findChild<QTabWidget*>();
 
+    int cnt = tabWidget->count();
+
+    if(qApp->focusWidget()->objectName() == "left") {
+        historyBackLeft.move(tabWidget->currentIndex(), 0);
+        historyForwardLeft.move(tabWidget->currentIndex(), 0);
+
+        for (int i = 0; i < cnt - 1; i++) {
+            historyBackLeft.remove(1);
+            historyForwardLeft.remove(1);
+        }
+    }
+    else {
+        historyBackRight.move(tabWidget->currentIndex(), 0);
+        historyForwardRight.move(tabWidget->currentIndex(), 0);
+
+        for (int i = 0; i < cnt - 1; i++) {
+            historyBackRight.remove(1);
+            historyForwardRight.remove(1);
+        }
+    }
 
     tabWidget->tabBar()->moveTab(tabWidget->currentIndex(), 0);
-    int cnt = tabWidget->count();
 
     for(int i = 0; i < cnt - 1; i++)
         tabWidget->removeTab(1);
@@ -1424,8 +1508,7 @@ void MainWindow::on_actionClose_all_tabs_triggered() {
 }
 
 void MainWindow::on_actionSwitch_to_the_next_tab_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
     QTabWidget *tabWidget;
     if(qApp->focusWidget()->objectName() == "left")
@@ -1440,8 +1523,7 @@ void MainWindow::on_actionSwitch_to_the_next_tab_triggered() {
 }
 
 void MainWindow::on_actionSwitch_to_the_previous_tab_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
     QTabWidget *tabWidget;
     if(qApp->focusWidget()->objectName() == "left")
@@ -1456,8 +1538,7 @@ void MainWindow::on_actionSwitch_to_the_previous_tab_triggered() {
 }
 
 void MainWindow::on_actionOpen_the_folder_in_the_new_tab_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
     QTabWidget *tabWidget;
     if(qApp->focusWidget()->objectName() == "left")
@@ -1465,9 +1546,9 @@ void MainWindow::on_actionOpen_the_folder_in_the_new_tab_triggered() {
     else
         tabWidget = ui->rightPanel->findChild<QTabWidget*>();
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     QModelIndex fsModelIndex = sortModel->mapToSource(view->currentIndex());
     QString filePath = fsModel->filePath(fsModelIndex);
@@ -1475,24 +1556,12 @@ void MainWindow::on_actionOpen_the_folder_in_the_new_tab_triggered() {
     if(QFileInfo(filePath).isFile())
         return;
 
-    QString folderName;
-    if(QDir(filePath).isRoot()) {
-        folderName = QDir(filePath).absoluteFilePath(filePath);
-        folderName.chop(1);
-    }
-    else
-        folderName = QDir(filePath).dirName();
-
-    auto index = tabWidget->addTab(new QLabel(folderName), folderName);
-    tabWidget->setCurrentIndex(index);
     createView(tabWidget, filePath);
-
     tabsUpdate(tabWidget);
 }
 
 void MainWindow::on_actionOpen_the_folder_in_the_new_tab_in_another_bar_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
     QTabWidget *tabWidget;
     if(qApp->focusWidget()->objectName() == "right")
@@ -1500,9 +1569,9 @@ void MainWindow::on_actionOpen_the_folder_in_the_new_tab_in_another_bar_triggere
     else
         tabWidget = ui->rightPanel->findChild<QTabWidget*>();
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     QModelIndex fsModelIndex = sortModel->mapToSource(view->currentIndex());
     QString filePath = fsModel->filePath(fsModelIndex);
@@ -1510,30 +1579,18 @@ void MainWindow::on_actionOpen_the_folder_in_the_new_tab_in_another_bar_triggere
     if(QFileInfo(filePath).isFile())
         return;
 
-    QString folderName;
-    if(QDir(filePath).isRoot()) {
-        folderName = QDir(filePath).absoluteFilePath(filePath);
-        folderName.chop(1);
-    }
-    else
-        folderName = QDir(filePath).dirName();
-
-    auto index = tabWidget->addTab(new QLabel(folderName), folderName);
-    tabWidget->setCurrentIndex(index);
     createView(tabWidget, filePath);
-
     tabsUpdate(tabWidget);
 }
 
 
 // tools menu actions
 void MainWindow::on_actionFile_search_triggered() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     QModelIndex fsModelIndex = sortModel->mapToSource(view->currentIndex());
     QString filePath = fsModel->filePath(fsModelIndex).left(fsModel->filePath(fsModelIndex).lastIndexOf('/')) + '/';
@@ -1560,24 +1617,24 @@ void MainWindow::on_actionFile_search_triggered() {
     tabWidget->setCurrentIndex(index);
     createView(tabWidget, path);
 
+    tabsUpdate(tabWidget);
+    diskStatusUpdate(tabWidget);
+
     view = tabWidget->currentWidget()->findChild<MyTreeView*>();
-    sortModel = (MySortFilterProxyModel*) view->model();
-    fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    sortModel = view->sortModel;
+    fsModel = sortModel->fsModel;
 
     fsModelIndex = fsModel->index(file);
     QModelIndex sortModelIndex = sortModel->mapFromSource(fsModelIndex);
 
+    view->setVisible(true);
+    view->setFocus();
     view->setCurrentIndex(sortModelIndex);
-    QTimer::singleShot(0, [=]() {
-        view->scrollToFile();
-    });
-
-    tabsUpdate(tabWidget);
-    diskStatusUpdate(tabWidget);
+    view->scrollToFile();
 }
 
 void MainWindow::on_actionShow_Hide_hidden_files_triggered() {
-    QTabWidget *tabWidget = (QTabWidget*) ui->leftPanel->findChild<QTabWidget*>();
+    QTabWidget *tabWidget = ui->leftPanel->findChild<QTabWidget*>();
     MyTreeView *view;
     MySortFilterProxyModel *sortModel;
     MyFileSystemModel *fsModel;
@@ -1588,15 +1645,15 @@ void MainWindow::on_actionShow_Hide_hidden_files_triggered() {
     if(!settings->value("show_hidden").toInt()) {
         for(int i = 0; i < tabWidget->count(); i++) {
             view = tabWidget->widget(i)->findChild<MyTreeView*>();
-            sortModel = (MySortFilterProxyModel*) view->model();
-            fsModel = (MyFileSystemModel*) sortModel->sourceModel();
+            sortModel = view->sortModel;
+            fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::Hidden);
         }
-        tabWidget = (QTabWidget*) ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
         for(int i = 0; i < tabWidget->count(); i++) {
             view = tabWidget->widget(i)->findChild<MyTreeView*>();
-            sortModel = (MySortFilterProxyModel*) view->model();
-            fsModel = (MyFileSystemModel*) sortModel->sourceModel();
+            sortModel = view->sortModel;
+            fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::Hidden);
         }
         settings->setValue("show_hidden", 1);
@@ -1604,15 +1661,15 @@ void MainWindow::on_actionShow_Hide_hidden_files_triggered() {
     else {
         for(int i = 0; i < tabWidget->count(); i++) {
             view = tabWidget->widget(i)->findChild<MyTreeView*>();
-            sortModel = (MySortFilterProxyModel*) view->model();
-            fsModel = (MyFileSystemModel*) sortModel->sourceModel();
+            sortModel = view->sortModel;
+            fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files);
         }
-        tabWidget = (QTabWidget*) ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
         for(int i = 0; i < tabWidget->count(); i++) {
             view = tabWidget->widget(i)->findChild<MyTreeView*>();
-            sortModel = (MySortFilterProxyModel*) view->model();
-            fsModel = (MyFileSystemModel*) sortModel->sourceModel();
+            sortModel = view->sortModel;
+            fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files);
         }
         settings->setValue("show_hidden", 0);
@@ -1621,15 +1678,67 @@ void MainWindow::on_actionShow_Hide_hidden_files_triggered() {
     settings->endGroup();
 }
 
+void MainWindow::open_Terminal_triggered() {
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
+
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
+
+    QModelIndex fsModelIndex = sortModel->mapToSource(view->currentIndex());
+    QFileInfo file = fsModel->fileInfo(fsModelIndex);
+
+    QString path;
+    if(file.isDir()) {
+        if(view->currentIndex().data() == "..") {
+            path = file.filePath();
+            path.chop(2);
+        }
+        else
+            path = file.absoluteFilePath();
+    }
+    else
+        path = file.absolutePath();
+
+#ifdef Q_OS_WIN
+    // Open cmd on Windows
+    QProcess::startDetached("C:/Windows/System32/cmd.exe", QStringList() << "/K" << QString("cd /d \"%1\"").arg(path));
+    return;
+#elif Q_OS_MACOS
+    // Open Terminal on MacOS
+    QProcess::startDetached("open", QStringList() << "-a" << "Terminal" << path);
+    return;
+#else
+    // Find and open terminal on Linux
+    QStringList terminalList = {
+        qgetenv("TERMINAL"), "x-terminal-emulator", "mate-terminal", "gnome-terminal", "terminator",
+        "xfce4-terminal", "urxvt", "rxvt", "termit", "Eterm", "aterm", "uxterm", "xterm",
+        "roxterm", "termite", "lxterminal", "terminology", "st", "qterminal",
+        "lilyterm", "tilix", "terminix", "konsole", "kitty", "guake", "tilda",
+        "alacritty", "hyper", "wezterm", "rio"
+    };
+    for (const QString &terminal : terminalList) {
+        QProcess process;
+        process.start("which", QStringList() << terminal);
+        process.waitForFinished();
+
+        if (process.exitCode() == 0) {
+            QStringList args;
+            args << "-e" << QString("bash -c 'cd \"%1\" && exec bash'").arg(path);
+            QProcess::startDetached(terminal, args);
+        }
+    }
+#endif
+}
+
 
 // bottom buttons actions
 void MainWindow::on_editBtn_clicked() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
-        return;
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
-    MyTreeView *view = (MyTreeView*)qApp->focusWidget();
-    MySortFilterProxyModel *sortModel = (MySortFilterProxyModel*) view->model();
-    MyFileSystemModel *fsModel = (MyFileSystemModel*)sortModel->sourceModel();
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
 
     QModelIndex fsModelIndex = sortModel->mapToSource(view->currentIndex());
     QFileInfo file = fsModel->fileInfo(fsModelIndex);
@@ -1639,7 +1748,7 @@ void MainWindow::on_editBtn_clicked() {
 
 #ifdef Q_OS_WIN
         // Open with Notepad in Windows
-        process->start("C:/Windows/System32/notepad.exe", QStringList() << file.absoluteFilePath());
+        process->start("C:/Windows/System32/Notepad.exe", QStringList() << file.absoluteFilePath());
         return;
 #else
         // open with default text editor in Linux
@@ -1654,13 +1763,13 @@ void MainWindow::on_editBtn_clicked() {
 }
 
 void MainWindow::on_copyBtn_clicked() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
+
+    MyTreeView *sourceView = static_cast<MyTreeView*> (qApp->focusWidget());
+
+    QStringList filePaths = getFileList();
+    if (filePaths.isEmpty())
         return;
-
-    MyTreeView *sourceView = (MyTreeView*)qApp->focusWidget();
-
-    QStringList filePaths;
-    getFileList(filePaths);
 
     // find target tabwidget, view and models
     QTabWidget *tabWidget;
@@ -1670,8 +1779,7 @@ void MainWindow::on_copyBtn_clicked() {
         tabWidget = ui->leftPanel->findChild<QTabWidget*>();
 
     MyTreeView *targetView = tabWidget->currentWidget()->findChild<MyTreeView*>();
-    MySortFilterProxyModel *targetSortModel = (MySortFilterProxyModel*) targetView->model();
-    MyFileSystemModel *targetFsModel = (MyFileSystemModel*)targetSortModel->sourceModel();
+    MyFileSystemModel *targetFsModel = targetView->sortModel->fsModel;
 
     QString destPath = targetFsModel->rootPath();
     if(destPath.at(destPath.length() - 1) != '/')
@@ -1691,13 +1799,15 @@ void MainWindow::on_copyBtn_clicked() {
 }
 
 void MainWindow::on_moveBtn_clicked() {
-    if(strcmp(qApp->focusWidget()->metaObject()->className(), "MyTreeView") != 0)
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
+
+    QStringList filePaths = getFileList();
+    if (filePaths.isEmpty())
         return;
 
-    MyTreeView *sourceView = (MyTreeView*)qApp->focusWidget();
+    MyTreeView *sourceView = static_cast<MyTreeView*> (qApp->focusWidget());
 
-    QStringList filePaths;
-    getFileList(filePaths);
+    on_actionCut_triggered();
 
     // find target tabwidget, view and models
     QTabWidget *tabWidget;
@@ -1707,83 +1817,33 @@ void MainWindow::on_moveBtn_clicked() {
         tabWidget = ui->leftPanel->findChild<QTabWidget*>();
 
     MyTreeView *targetView = tabWidget->currentWidget()->findChild<MyTreeView*>();
-    MySortFilterProxyModel *targetSortModel = (MySortFilterProxyModel*) targetView->model();
-    MyFileSystemModel *targetFsModel = (MyFileSystemModel*)targetSortModel->sourceModel();
+    MySortFilterProxyModel *sortModel = targetView->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
+    QString rootPath = fsModel->rootPath();
 
-    QString destPath = targetFsModel->rootPath();
-    if(destPath.at(destPath.length() - 1) != '/')
-        destPath.append('/');
+    QMessageBox *msgMoveConfirm = new QMessageBox(this);
+    msgMoveConfirm->setWindowTitle("Move files");
+    msgMoveConfirm->setModal(true);
+    msgMoveConfirm->setText("Do you want to move files (" + QString::number(filePaths.length()) + ") to " + rootPath + "?");
+    msgMoveConfirm->setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    msgMoveConfirm->setDefaultButton(QMessageBox::Yes);
+    msgMoveConfirm->setIcon(QMessageBox::Question);
 
-    QMessageBox msgMoveConfirm;
-    msgMoveConfirm.setWindowTitle("Move files");
-    msgMoveConfirm.setText("Do you want to move files (" + QString::number(filePaths.length()) + ") to " + destPath + "?");
-    msgMoveConfirm.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    msgMoveConfirm.setDefaultButton(QMessageBox::Yes);
-    msgMoveConfirm.setIcon(QMessageBox::Question);
-
-    if(msgMoveConfirm.exec() == QMessageBox::Yes) {
-        for(QString &file : filePaths) {
-            QFileInfo fileInfo = QFileInfo(file);
-
-            // check if moved folder is not parent of destination folder
-            if(fileInfo.isDir() && destPath.contains(file)) {
-                QMessageBox::warning(nullptr, "Error", "The source directory is the parent of the target directory!");
-                return;
-            }
-
-            // check if moved file/folder is not destination file/folder
-            if(file == destPath + fileInfo.fileName()) {
-                QMessageBox::warning(nullptr, "Error", "It is not possible to move file or folder to itself!");
-                return;
-            }
-
-            if(QFileInfo::exists(destPath + fileInfo.fileName())) {
-                QMessageBox msgFileExists;
-                msgFileExists.setIcon(QMessageBox::Question);
-                msgFileExists.setWindowTitle("File exists");
-                msgFileExists.setText("File \"" + destPath + fileInfo.fileName() +
-                                      "\" already exists! Do you want to overwrite the file?");
-                QPushButton *overwriteButton = msgFileExists.addButton("Overwrite", QMessageBox::YesRole);
-                QPushButton *overwriteAllButton = msgFileExists.addButton("Overwrite All", QMessageBox::YesRole);
-                QPushButton *skipButton = msgFileExists.addButton("Skip", QMessageBox::NoRole);
-                QPushButton *skipAllButton = msgFileExists.addButton("Skip All", QMessageBox::NoRole);
-                msgFileExists.exec();
-
-                if(msgFileExists.clickedButton() == (QAbstractButton*)overwriteButton) {
-                    QFile::remove(destPath + fileInfo.fileName());
-                    QFile::rename(file, destPath + fileInfo.fileName());
-                }
-                if(msgFileExists.clickedButton() == (QAbstractButton*)overwriteAllButton) {
-                    QStringList rest;
-                    for(QList<QString>::iterator it = filePaths.begin() + filePaths.indexOf(file); it != filePaths.end(); ++it)
-                        rest.append(*it);
-                    for(QString &path : rest) {
-                        QFile::remove(destPath + QFileInfo(path).fileName());
-                        QFile::rename(path, destPath + QFileInfo(path).fileName());
-                    }
-                    break;
-                }
-                if(msgFileExists.clickedButton() == (QAbstractButton*)skipButton) {
-                    continue;
-                }
-                if(msgFileExists.clickedButton() == (QAbstractButton*)skipAllButton) {
-                    QStringList rest;
-                    for(QList<QString>::iterator it = filePaths.begin() + filePaths.indexOf(file); it != filePaths.end(); ++it) {
-                        if(!QFile::exists(*it))
-                            rest.append(*it);
-                    }
-                    for(QString &path : rest) {
-                        QFile::remove(destPath + QFileInfo(path).fileName());
-                        QFile::rename(path, destPath + QFileInfo(path).fileName());
-                    }
-                    break;
-                }
-            }
-            else {
-                QFile::rename(file, destPath + fileInfo.fileName());
+    if(msgMoveConfirm->exec() == QMessageBox::Yes) {
+        // set cursor on the first row
+        QModelIndex rootIndex = sortModel->mapFromSource(fsModel->index(rootPath));
+        if (rootIndex.isValid() && targetView->model()->rowCount(rootIndex) > 0) {
+            QModelIndex firstChildIndex = targetView->model()->index(0, 0, rootIndex);
+            if (firstChildIndex.isValid()) {
+                targetView->selectionModel()->setCurrentIndex(firstChildIndex, QItemSelectionModel::NoUpdate);
             }
         }
     }
+
+    QTimer::singleShot(50, this, [=]() {
+        targetView->setFocus();
+        on_actionPaste_triggered();
+    });
 }
 
 void MainWindow::on_folderBtn_clicked() {
@@ -1797,7 +1857,7 @@ void MainWindow::on_deleteBtn_clicked() {
 
 // up button action
 void MainWindow::upBtn_clicked() {
-    QPushButton *button = (QPushButton*) sender();
+    QPushButton *button = static_cast<QPushButton*> (sender());
     QTabWidget *tabWidget;
 
     if(button->objectName() == "left")
@@ -1805,13 +1865,100 @@ void MainWindow::upBtn_clicked() {
     else
         tabWidget = ui->rightPanel->findChild<QTabWidget*>();
 
-    QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
+    MyTreeView *view = static_cast<MyTreeView*>(tabWidget->findChild<MyTreeView*>());
+    if(!view) return;
+
+    QLineEdit *pathEdit = tabWidget->findChild<QLineEdit*>();
     QString currentPath = pathEdit->text();
 
     if(!QDir(currentPath).isRoot()) {
+        view->setFocus();
         directoryChange(currentPath + "..");
     }
 }
 
+// history and buttons back/forward
+bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
+    if (event->type() == QEvent::MouseButtonPress) {
 
+        if (!qobject_cast<MyTreeView*> (qApp->focusWidget()))
+            return QMainWindow::eventFilter(obj, event);
 
+        MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+        QTabWidget *tabWidget;
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*> (event);
+
+        if (mouseEvent->button() == Qt::BackButton) {
+            if (view->objectName() == "left") {
+                tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+                QLineEdit *pathEdit = static_cast<QLineEdit*>(tabWidget->currentWidget()->findChild<QLineEdit*>());
+                QString currentPath = pathEdit->text();
+                int currentTab = tabWidget->currentIndex();
+
+                if(!historyBackLeft[currentTab].isEmpty()) {
+                    historyForwardLeft[currentTab].push(currentPath);
+                    QString previousPath = historyBackLeft[currentTab].pop();
+                    isNavTriggered = true;
+                    directoryChange(previousPath);
+                }
+            }
+            else {
+                tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+                QLineEdit *pathEdit = static_cast<QLineEdit*>(tabWidget->currentWidget()->findChild<QLineEdit*>());
+                QString currentPath = pathEdit->text();
+                int currentTab = tabWidget->currentIndex();
+
+                if(!historyBackRight[currentTab].isEmpty()) {
+                    historyForwardRight[currentTab].push(currentPath);
+                    QString previousPath = historyBackRight[currentTab].pop();
+                    isNavTriggered = true;
+                    directoryChange(previousPath);
+                }
+            }
+            return true;
+        }
+        else if (mouseEvent->button() == Qt::ForwardButton) {
+            if (view->objectName() == "left") {
+                tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+                QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
+                QString currentPath = pathEdit->text();
+                int currentTab = tabWidget->currentIndex();
+
+                if(!historyForwardLeft[currentTab].isEmpty()) {
+                    historyBackLeft[currentTab].push(currentPath);
+                    QString nextPath = historyForwardLeft[currentTab].pop();
+                    isNavTriggered = true;
+                    directoryChange(nextPath);
+                }
+
+            }
+            else {
+                tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+                QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
+                QString currentPath = pathEdit->text();
+                int currentTab = tabWidget->currentIndex();
+
+                if (!historyForwardRight[currentTab].isEmpty()) {
+                    historyBackRight[currentTab].push(currentPath);
+                    QString nextPath = historyForwardRight[currentTab].pop();
+                    isNavTriggered = true;
+                    directoryChange(nextPath);
+                }
+            }
+            return true;
+        }
+
+    }
+    return QMainWindow::eventFilter(obj, event);
+}
+
+void MainWindow::addToHistory(QString path, int currentTab, QString panel) {
+    if(panel == "left") {
+        historyForwardLeft[currentTab].clear();
+        historyBackLeft[currentTab].push(path);
+    }
+    else {
+        historyForwardRight[currentTab].clear();
+        historyBackRight[currentTab].push(path);
+    }
+}

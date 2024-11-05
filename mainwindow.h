@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QMouseEvent>
 #include "devicewatcher.h"
 
 QT_BEGIN_NAMESPACE
@@ -10,24 +11,36 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-private slots:
+    QVector<QStack<QString>> historyBackLeft;
+    QVector<QStack<QString>> historyForwardLeft;
+    QVector<QStack<QString>> historyBackRight;
+    QVector<QStack<QString>> historyForwardRight;
+    bool isNavTriggered = false;
+    bool isCutted = false;
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
+
+private:
+    bool isValidFileName(QString filename);
+    QStringList getFileList();
     void createView(QTabWidget *tabBar, QString path);
     void directoryChange(QString path);
     void tabsUpdate(QTabWidget *tabWidget);
     void diskStatusUpdate(QTabWidget *tabWidget);
     void clearLayout(QLayout *layout);
-    void getFileList(QStringList &files);
     void deviceUpdate(const QString &device);
-    bool isValidFileName(QString filename);
+    void addToHistory(QString path, int currentTab, QString panel);
+    void initialize();
 
+private slots:
     // Slots for UI actions
     void diskList_textActivated(const QString &text);
     void diskButton_clicked();
@@ -68,6 +81,7 @@ private slots:
     // Tools menu actions
     void on_actionFile_search_triggered();
     void on_actionShow_Hide_hidden_files_triggered();
+    void open_Terminal_triggered();
 
     // Bottom button actions
     void on_editBtn_clicked();
@@ -75,7 +89,6 @@ private slots:
     void on_moveBtn_clicked();
     void on_folderBtn_clicked();
     void on_deleteBtn_clicked();
-
 
     void upBtn_clicked();
 

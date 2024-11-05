@@ -3,8 +3,7 @@
 
 DeviceWatcher::DeviceWatcher(QObject *parent, int interval)
     : QObject(parent),
-    timer(new QTimer(this))
-{
+    timer(new QTimer(this)) {
     connect(timer, &QTimer::timeout, this, &DeviceWatcher::checkDevices);
     timer->start(interval);
 
@@ -12,8 +11,7 @@ DeviceWatcher::DeviceWatcher(QObject *parent, int interval)
     checkDevices();
 }
 
-void DeviceWatcher::checkDevices()
-{
+void DeviceWatcher::checkDevices() {
     QSet<QString> currentDevices;
     foreach (const QStorageInfo &storage, QStorageInfo::mountedVolumes()) {
         if (storage.isValid() && storage.isReady()) {

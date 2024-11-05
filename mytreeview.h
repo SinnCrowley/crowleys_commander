@@ -5,15 +5,18 @@
 #include <QKeyEvent>
 #include <QItemSelectionModel>
 #include <QDrag>
+#include "mysortfilterproxymodel.h"
 
 class MyTreeView : public QTreeView {
     Q_OBJECT
 public:
-    MyTreeView(QWidget *parent = nullptr);
+    MyTreeView(const QString path, QWidget *parent);
     bool edit(const QModelIndex &index, EditTrigger trigger, QEvent *event) override;
     void edit(const QModelIndex &index);
 
     void scrollToFile();
+    void updateDirectory(const QString &path);
+    MySortFilterProxyModel *sortModel;
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

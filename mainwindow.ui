@@ -111,12 +111,12 @@ QHeaderView::section {
 	border-bottom: 1px solid #555;
 	border-right: 1px solid #444;
 	height: 20px;
-	margin-top: 8px;
+	margin-top: 5px;
 	margin-left: 5px;
 }
-QHeaderView::section:first {
+/*QHeaderView::section:first {
 	margin-left: -15px;
-}
+}*/
 QHeaderView::section:hover {
 	background: #292929;
 }
@@ -240,7 +240,7 @@ QHeaderView::up-arrow {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::FocusPolicy::NoFocus</enum>
+                <enum>Qt::NoFocus</enum>
                </property>
               </widget>
              </item>
@@ -257,7 +257,7 @@ QHeaderView::up-arrow {
                 <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -345,7 +345,7 @@ QHeaderView::up-arrow {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::FocusPolicy::ClickFocus</enum>
+                <enum>Qt::ClickFocus</enum>
                </property>
               </widget>
              </item>
@@ -362,7 +362,7 @@ QHeaderView::up-arrow {
                 <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -388,7 +388,7 @@ QHeaderView::up-arrow {
         <number>0</number>
        </property>
        <property name="sizeConstraint">
-        <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
+        <enum>QLayout::SetDefaultConstraint</enum>
        </property>
        <property name="leftMargin">
         <number>0</number>
@@ -405,7 +405,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="editBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F4 Edit</string>
@@ -415,7 +415,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="copyBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F5 Copy</string>
@@ -425,7 +425,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="moveBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F6 Move</string>
@@ -435,7 +435,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="folderBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F7 New Folder</string>
@@ -445,7 +445,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="deleteBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F8 Delete</string>
@@ -463,8 +463,11 @@ QHeaderView::up-arrow {
      <x>0</x>
      <y>0</y>
      <width>930</width>
-     <height>25</height>
+     <height>23</height>
     </rect>
+   </property>
+   <property name="acceptDrops">
+    <bool>false</bool>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
@@ -496,7 +499,7 @@ QHeaderView::up-arrow {
    </widget>
    <widget class="QMenu" name="menuTabs">
     <property name="title">
-     <string>Tabs</string>
+     <string>&amp;Tabs</string>
     </property>
     <addaction name="actionCreate_a_new_tab"/>
     <addaction name="actionClose_this_tab"/>
@@ -506,13 +509,13 @@ QHeaderView::up-arrow {
     <addaction name="separator"/>
     <addaction name="actionSwitch_to_the_previous_tab"/>
     <addaction name="actionOpen_the_folder_in_the_new_tab"/>
-    <addaction name="actionOpen_this_folder_in_the_new_tab_in_another_bar"/>
+    <addaction name="actionOpen_the_folder_in_the_new_tab_in_another_bar"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
      <string>Tools</string>
     </property>
-    <addaction name="actionFile_Search"/>
+    <addaction name="actionFile_search"/>
     <addaction name="actionShow_Hide_hidden_files"/>
    </widget>
    <addaction name="menuFile"/>
@@ -522,7 +525,7 @@ QHeaderView::up-arrow {
   </widget>
   <action name="actionNew_File">
    <property name="text">
-    <string>New File</string>
+    <string>&amp;New File</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+N</string>
@@ -533,21 +536,21 @@ QHeaderView::up-arrow {
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Open selected file</string>
+    <string>&amp;Open selected file</string>
    </property>
    <property name="shortcut">
     <string>Return</string>
    </property>
    <property name="shortcutContext">
-    <enum>Qt::ShortcutContext::WidgetShortcut</enum>
+    <enum>Qt::WidgetShortcut</enum>
    </property>
    <property name="priority">
-    <enum>QAction::Priority::LowPriority</enum>
+    <enum>QAction::LowPriority</enum>
    </property>
   </action>
   <action name="actionOpen_with">
    <property name="text">
-    <string>Open with</string>
+    <string>Open &amp;with</string>
    </property>
    <property name="shortcut">
     <string>Shift+Return</string>
@@ -555,7 +558,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionRename">
    <property name="text">
-    <string>Rename</string>
+    <string>&amp;Rename</string>
    </property>
    <property name="shortcut">
     <string>F2</string>
@@ -563,7 +566,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionRemove">
    <property name="text">
-    <string>Remove</string>
+    <string>R&amp;emove</string>
    </property>
    <property name="shortcut">
     <string>Del</string>
@@ -571,7 +574,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionRemove_permanently">
    <property name="text">
-    <string>Remove permanently</string>
+    <string>Re&amp;move permanently</string>
    </property>
    <property name="shortcut">
     <string>Shift+Del</string>
@@ -579,7 +582,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionCreate_Folder">
    <property name="text">
-    <string>Create Folder</string>
+    <string>&amp;Create Folder</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Shift+N</string>
@@ -587,7 +590,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionCreate_Shortcut">
    <property name="text">
-    <string>Create Shortcut</string>
+    <string>Create &amp;Shortcut</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+L</string>
@@ -595,7 +598,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionCut">
    <property name="text">
-    <string>Cut</string>
+    <string>C&amp;ut</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+X</string>
@@ -603,7 +606,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionCopy">
    <property name="text">
-    <string>Copy</string>
+    <string>Cop&amp;y</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+C</string>
@@ -611,7 +614,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionPaste">
    <property name="text">
-    <string>Paste</string>
+    <string>&amp;Paste</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+V</string>
@@ -619,7 +622,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionSelect_file">
    <property name="text">
-    <string>Select file</string>
+    <string>&amp;Select file</string>
    </property>
    <property name="shortcut">
     <string>Space</string>
@@ -627,7 +630,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionSelect_all">
    <property name="text">
-    <string>Select all</string>
+    <string>Select &amp;all</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+A</string>
@@ -635,7 +638,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionRemove_selection">
    <property name="text">
-    <string>Remove selection</string>
+    <string>&amp;Remove selection</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+D</string>
@@ -643,7 +646,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionCreate_a_new_tab">
    <property name="text">
-    <string>Create a new tab</string>
+    <string>&amp;Create a new tab</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+T</string>
@@ -651,7 +654,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionClose_this_tab">
    <property name="text">
-    <string>Close this tab</string>
+    <string>C&amp;lose this tab</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+W</string>
@@ -659,7 +662,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionClose_all_tabs">
    <property name="text">
-    <string>Close all tabs</string>
+    <string>Close &amp;all tabs</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Shift+W</string>
@@ -667,7 +670,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionSwitch_to_the_next_tab">
    <property name="text">
-    <string>Switch to the next tab</string>
+    <string>&amp;Switch to the next tab</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Right</string>
@@ -675,7 +678,7 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionSwitch_to_the_previous_tab">
    <property name="text">
-    <string>Switch to the previous tab</string>
+    <string>Switch to the &amp;previous tab</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Left</string>
@@ -683,31 +686,34 @@ QHeaderView::up-arrow {
   </action>
   <action name="actionOpen_the_folder_in_the_new_tab">
    <property name="text">
-    <string>Open the folder in the new tab</string>
+    <string>&amp;Open the folder in the new tab</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Up</string>
    </property>
   </action>
-  <action name="actionOpen_this_folder_in_the_new_tab_in_another_bar">
+  <action name="actionOpen_the_folder_in_the_new_tab_in_another_bar">
    <property name="text">
-    <string>Open the folder in the new tab in another bar</string>
+    <string>Open &amp;the folder in the new tab in another bar</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Shift+Up</string>
    </property>
   </action>
-  <action name="actionFile_Search">
+  <action name="actionFile_search">
    <property name="text">
-    <string>File search</string>
+    <string>&amp;File search</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+F</string>
    </property>
   </action>
   <action name="actionShow_Hide_hidden_files">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
    <property name="text">
-    <string>Show/Hide hidden files</string>
+    <string>&amp;Show/Hide hidden files</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+H</string>

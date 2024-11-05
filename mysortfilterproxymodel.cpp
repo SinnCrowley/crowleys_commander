@@ -1,11 +1,13 @@
 #include "mysortfilterproxymodel.h"
 #include "myfilesystemmodel.h"
 
-MySortFilterProxyModel::MySortFilterProxyModel(QWidget *parent) {
+MySortFilterProxyModel::MySortFilterProxyModel(QString path, QWidget *parent) {
     Q_UNUSED(parent);
+    fsModel = new MyFileSystemModel(path, this);
 
     setRecursiveFilteringEnabled(true);
     setFilterCaseSensitivity(Qt::CaseInsensitive);
+    setSourceModel(fsModel);
 }
 
 bool MySortFilterProxyModel::lessThan(const QModelIndex &left, const QModelIndex &right) const {
@@ -33,7 +35,7 @@ bool MySortFilterProxyModel::lessThan(const QModelIndex &left, const QModelIndex
     }
 
     // sorting by type
-    if (sortColumn() == 2) {
+    if (sortColumn() == 1) {
         QString leftType = leftFileInfo.suffix().toLower();
         QString rightType = rightFileInfo.suffix().toLower();
 
@@ -49,7 +51,7 @@ bool MySortFilterProxyModel::lessThan(const QModelIndex &left, const QModelIndex
     }
 
     // sorting by size
-    if (sortColumn() == 1) {
+    if (sortColumn() == 2) {
         qint64 leftSize = leftFileInfo.size();
         qint64 rightSize = rightFileInfo.size();
         return leftSize < rightSize;

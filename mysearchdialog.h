@@ -21,9 +21,7 @@ public:
 
 private slots:
     void on_browseButton_clicked();
-
     void on_searchButton_clicked();
-
     void on_result_itemDoubleClicked(QListWidgetItem *item);
 
 private:

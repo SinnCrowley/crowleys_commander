@@ -41,7 +41,7 @@ void MySearchDialog::findRecursively(const QString &path, const QString &pattern
     if(path.at(path.length() - 1) != '/')
         prefix.append('/');
 
-    foreach (const QString &match, currentDir.entryList(QStringList(pattern), QDir::Files | QDir::NoSymLinks))
+    foreach (const QString &match, currentDir.entryList(QStringList(pattern), QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot))
         result->append(prefix + match);
     foreach (const QString &dir, currentDir.entryList(QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot))
         findRecursively(prefix + dir, pattern, result);
