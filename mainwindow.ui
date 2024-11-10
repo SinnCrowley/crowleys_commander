@@ -114,12 +114,10 @@ QHeaderView::section {
 	margin-top: 5px;
 	margin-left: 5px;
 }
-/*QHeaderView::section:first {
-	margin-left: -15px;
-}*/
 QHeaderView::section:hover {
 	background: #292929;
 }
+
 QHeaderView::down-arrow {
     image: url(:icons/icons/arrow.png);
 	width: 12px;
@@ -240,7 +238,7 @@ QHeaderView::up-arrow {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::NoFocus</enum>
+                <enum>Qt::FocusPolicy::NoFocus</enum>
                </property>
               </widget>
              </item>
@@ -257,7 +255,7 @@ QHeaderView::up-arrow {
                 <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -345,7 +343,7 @@ QHeaderView::up-arrow {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::ClickFocus</enum>
+                <enum>Qt::FocusPolicy::ClickFocus</enum>
                </property>
               </widget>
              </item>
@@ -362,7 +360,7 @@ QHeaderView::up-arrow {
                 <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -388,7 +386,7 @@ QHeaderView::up-arrow {
         <number>0</number>
        </property>
        <property name="sizeConstraint">
-        <enum>QLayout::SetDefaultConstraint</enum>
+        <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
        </property>
        <property name="leftMargin">
         <number>0</number>
@@ -405,7 +403,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="editBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F4 Edit</string>
@@ -415,7 +413,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="copyBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F5 Copy</string>
@@ -425,7 +423,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="moveBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F6 Move</string>
@@ -435,7 +433,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="folderBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F7 New Folder</string>
@@ -445,7 +443,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="deleteBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F8 Delete</string>
@@ -463,7 +461,7 @@ QHeaderView::up-arrow {
      <x>0</x>
      <y>0</y>
      <width>930</width>
-     <height>23</height>
+     <height>25</height>
     </rect>
    </property>
    <property name="acceptDrops">
@@ -542,10 +540,10 @@ QHeaderView::up-arrow {
     <string>Return</string>
    </property>
    <property name="shortcutContext">
-    <enum>Qt::WidgetShortcut</enum>
+    <enum>Qt::ShortcutContext::WidgetShortcut</enum>
    </property>
    <property name="priority">
-    <enum>QAction::LowPriority</enum>
+    <enum>QAction::Priority::LowPriority</enum>
    </property>
   </action>
   <action name="actionOpen_with">

@@ -37,9 +37,9 @@ MyTreeView::MyTreeView(const QString path, QWidget *parent) {
     setItemDelegate(new EditRectangleDelegate);
 
     //header()->moveSection(1, 2);
-    setColumnWidth(1, 65);
-    setColumnWidth(2, 75);
-    setColumnWidth(3, 100);
+    setColumnWidth(1, 70);
+    setColumnWidth(2, 65);
+    setColumnWidth(3, 110);
     header()->setSectionResizeMode(0, QHeaderView::Stretch);
     header()->setStretchLastSection(false);
 }
@@ -85,6 +85,10 @@ void MyTreeView::keyPressEvent(QKeyEvent *event) {
         switch (event->key()) {
         case Qt::Key_Up:
         case Qt::Key_Down:
+        case Qt::Key_PageDown:
+        case Qt::Key_PageUp:
+        case Qt::Key_End:
+        case Qt::Key_Home:
             moveCursorWithoutSelection(event->key());
             break;
         default:
@@ -204,6 +208,12 @@ void MyTreeView::moveCursorWithoutSelection(int key) {
         break;
     case Qt::Key_Down:
         nextIndex = this->model()->index(currentIndex.row() + 1, currentIndex.column(), currentIndex.parent());
+        break;
+    case Qt::Key_Home:
+        nextIndex = this->model()->index(0, 0, currentIndex.parent());
+        break;
+    case Qt::Key_End:
+        nextIndex = this->model()->index(this->model()->rowCount() - 1, 0, currentIndex.parent());
         break;
     default:
         return;

@@ -100,7 +100,7 @@ private:
     QFileInfoList fileList;
     QString m_path;
     int fileCount = 0;
-    int batchSize = 100;
+    int batchSize = 1000;
     QFlags<QDir::Filter> filters;
     QFileSystemWatcher *fileSystemWatcher;
 

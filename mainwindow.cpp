@@ -1,13 +1,10 @@
 /*  TODO
  *
- *  ускорить загрузку больших папок (+ возможно подгружать внутренности папок в фоне)
- *
- *
- *  FUTURE
- *
  *  open with on linux
  *
  *  fix progress bars
+ *
+ *  treeview header sections remove spacing near sort indicators
  *
  *  on device connection add only new device (do not reload all panel)
  *
@@ -136,7 +133,7 @@ void MainWindow::createView(QTabWidget *tabBar, QString path) {
     connect(view, SIGNAL(activated(QModelIndex)), this, SLOT(view_activated(QModelIndex)));
     connect(view, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextMenu_requested(QPoint)));
     connect(pathEdit, SIGNAL(returnPressed()), this, SLOT(pathEdit_returnPressed()));
-    //connect(view->header(), SIGNAL(sectionClicked(int)), this, SLOT(viewHeader_clicked(int)));
+    connect(view->header(), SIGNAL(sectionClicked(int)), this, SLOT(viewHeader_clicked(int)));
 
     diskStatusUpdate(tabBar);
 
@@ -1412,6 +1409,7 @@ void MainWindow::on_actionSelect_all_triggered() {
     if (!qobject_cast<MyTreeView*>(qApp->focusWidget())) return;
 
     MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+
     view->selectAll();
 
     QModelIndex dotdot = view->model()->index(0, 0, view->rootIndex());
