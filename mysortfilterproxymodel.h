@@ -2,7 +2,6 @@
 #define MYSORTFILTERPROXYMODEL_H
 
 #include <QSortFilterProxyModel>
-#include <QFileInfo>
 #include "myfilesystemmodel.h"
 
 class MySortFilterProxyModel : public QSortFilterProxyModel {
@@ -13,4 +12,4 @@ public:
     MyFileSystemModel *fsModel;
 };
 
-#endif /* MYSORTFILTERPROXYMODEL_H */
+#endif // MYSORTFILTERPROXYMODEL_H

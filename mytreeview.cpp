@@ -2,10 +2,12 @@
 #include "styletweaks.h"
 
 #include <QApplication>
-#include <QKeyEvent>
+#include <QItemSelectionModel>
+#include <QDrag>
 #include <QHeaderView>
 
-MyTreeView::MyTreeView(const QString path, QWidget *parent) {
+MyTreeView::MyTreeView(const QString path, QWidget *parent)
+{
     Q_UNUSED(parent);
 
     sortModel = new MySortFilterProxyModel(path, this);
@@ -45,20 +47,23 @@ MyTreeView::MyTreeView(const QString path, QWidget *parent) {
 }
 
 // Disable rename of TreeView element on double click
-bool MyTreeView::edit(const QModelIndex &index, EditTrigger trigger, QEvent *event) {
+bool MyTreeView::edit(const QModelIndex &index, EditTrigger trigger, QEvent *event)
+{
     if (trigger == QAbstractItemView::DoubleClicked)
         return false;
 
     return QTreeView::edit(index, trigger, event);
 }
 
-void MyTreeView::edit(const QModelIndex &index) {
+void MyTreeView::edit(const QModelIndex &index)
+{
     if (index.data().toString() != "..")
         QTreeView::edit(index);
 }
 
 // Scrolling to file after searching
-void MyTreeView::scrollToFile() {
+void MyTreeView::scrollToFile()
+{
     QModelIndex index = this->currentIndex();
     this->scrollTo(index, QAbstractItemView::PositionAtCenter);
     this->clearSelection();
@@ -66,7 +71,8 @@ void MyTreeView::scrollToFile() {
 
 
 // Reimplementation of some events for files selecting
-void MyTreeView::keyPressEvent(QKeyEvent *event) {
+void MyTreeView::keyPressEvent(QKeyEvent *event)
+{
     QModelIndex currentIndex = this->currentIndex();
 
     if (event->modifiers() & Qt::ShiftModifier) {
@@ -98,52 +104,49 @@ void MyTreeView::keyPressEvent(QKeyEvent *event) {
     }
 }
 
-void MyTreeView::mousePressEvent(QMouseEvent *event) {
+void MyTreeView::mousePressEvent(QMouseEvent *event)
+{
     if (event->button() == Qt::LeftButton || event->button() == Qt::RightButton) {
         startPos = event->pos();
         QModelIndex oldIndex = this->currentIndex();
         QModelIndex newIndex = this->indexAt(event->pos());
         if (newIndex.isValid()) {
             if (event->modifiers() & Qt::ShiftModifier) {
-                if(oldIndex.row() > newIndex.row()) {
-                    for (int i = newIndex.row(); i <= oldIndex.row(); i++) {
+                if (oldIndex.row() > newIndex.row()) {
+                    for (int i = newIndex.row(); i <= oldIndex.row(); i++)
                         this->selectionModel()->select(this->model()->index(i, 0, oldIndex.parent()), QItemSelectionModel::Select | QItemSelectionModel::Rows);
-                    }
-                }
-                else {
-                    for (int i = oldIndex.row(); i <= newIndex.row(); i++) {
+                } else {
+                    for (int i = oldIndex.row(); i <= newIndex.row(); i++)
                         this->selectionModel()->select(this->model()->index(i, 0, oldIndex.parent()), QItemSelectionModel::Select | QItemSelectionModel::Rows);
-                    }
                 }
                 this->selectionModel()->setCurrentIndex(newIndex, QItemSelectionModel::NoUpdate);
-            }
-            else if (event->modifiers() & Qt::ControlModifier) {
+            } else if (event->modifiers() & Qt::ControlModifier) {
                 for (int i = 0; i < this->model()->columnCount(); i++) {
                     this->selectionModel()->select(oldIndex, QItemSelectionModel::Select | QItemSelectionModel::Rows);
                     this->selectionModel()->select(newIndex, QItemSelectionModel::Select | QItemSelectionModel::Rows);
                 }
                 this->selectionModel()->setCurrentIndex(newIndex, QItemSelectionModel::NoUpdate);
-            }
-            else {
+            } else {
                 this->selectionModel()->setCurrentIndex(newIndex, QItemSelectionModel::NoUpdate);
             }
             event->accept();
             return;
         }
+    } else  {
+        return;
     }
-    else return;
     QTreeView::mousePressEvent(event);
 }
 
-void MyTreeView::mouseMoveEvent(QMouseEvent *event) {
+void MyTreeView::mouseMoveEvent(QMouseEvent *event)
+{
     if (!(event->buttons() & Qt::LeftButton)) {
         QTreeView::mouseMoveEvent(event);
         return;
     }
 
-    if (!dragging && (event->pos() - startPos).manhattanLength() < QApplication::startDragDistance()+12) {
+    if (!dragging && (event->pos() - startPos).manhattanLength() < QApplication::startDragDistance()+12)
         return;
-    }
 
     dragging = true;
     QModelIndex index = this->indexAt(startPos);
@@ -154,9 +157,9 @@ void MyTreeView::mouseMoveEvent(QMouseEvent *event) {
             QModelIndexList list;
             list.append(selectionModel()->currentIndex());
             mimeData = model()->mimeData(list);
-        }
-        else
+        } else {
             mimeData = model()->mimeData(selectionModel()->selectedIndexes());
+        }
 
         drag->setMimeData(mimeData);
         drag->exec(Qt::CopyAction);
@@ -166,12 +169,14 @@ void MyTreeView::mouseMoveEvent(QMouseEvent *event) {
     }
 }
 
-void MyTreeView::mouseReleaseEvent(QMouseEvent *event) {
+void MyTreeView::mouseReleaseEvent(QMouseEvent *event)
+{
     dragging = false;
     QTreeView::mouseReleaseEvent(event);
 }
 
-void MyTreeView::mouseDoubleClickEvent(QMouseEvent *event) {
+void MyTreeView::mouseDoubleClickEvent(QMouseEvent *event)
+{
     QModelIndex index = this->indexAt(event->pos());
     if (event->button() == Qt::LeftButton && index.isValid()) {
         emit activated(index);
@@ -181,24 +186,24 @@ void MyTreeView::mouseDoubleClickEvent(QMouseEvent *event) {
     QTreeView::mouseDoubleClickEvent(event);
 }
 
-void MyTreeView::shiftSelect(const QModelIndex &currentIndex, int offset) {
+void MyTreeView::shiftSelect(const QModelIndex &currentIndex, int offset)
+{
     QItemSelectionModel *selectionModel = this->selectionModel();
     QModelIndex nextIndex = this->model()->index(currentIndex.row() + offset, currentIndex.column(), currentIndex.parent());
 
-    if (!nextIndex.isValid()) {
+    if (!nextIndex.isValid())
         return;
-    }
 
     if (selectionModel->isSelected(currentIndex))
         selectionModel->select(currentIndex, QItemSelectionModel::Deselect | QItemSelectionModel::Rows);
     else
         selectionModel->select(currentIndex, QItemSelectionModel::Select | QItemSelectionModel::Rows);
 
-
     selectionModel->setCurrentIndex(nextIndex.siblingAtColumn(currentIndex.column()), QItemSelectionModel::NoUpdate);
 }
 
-void MyTreeView::moveCursorWithoutSelection(int key) {
+void MyTreeView::moveCursorWithoutSelection(int key)
+{
     QModelIndex currentIndex = this->currentIndex();
     QModelIndex nextIndex;
 
@@ -219,7 +224,6 @@ void MyTreeView::moveCursorWithoutSelection(int key) {
         return;
     }
 
-    if (nextIndex.isValid()) {
+    if (nextIndex.isValid())
         this->selectionModel()->setCurrentIndex(nextIndex.siblingAtColumn(currentIndex.column()), QItemSelectionModel::NoUpdate);
-    }
 }

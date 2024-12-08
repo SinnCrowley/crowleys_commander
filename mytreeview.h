@@ -3,8 +3,6 @@
 
 #include <QTreeView>
 #include <QKeyEvent>
-#include <QItemSelectionModel>
-#include <QDrag>
 #include "mysortfilterproxymodel.h"
 
 class MyTreeView : public QTreeView {
@@ -15,7 +13,6 @@ public:
     void edit(const QModelIndex &index);
 
     void scrollToFile();
-    void updateDirectory(const QString &path);
     MySortFilterProxyModel *sortModel;
 
 protected:

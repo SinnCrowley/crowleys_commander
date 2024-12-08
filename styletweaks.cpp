@@ -5,7 +5,8 @@
 
 // selection cursor rectangle and drop indicator
 void StyleTweaks::drawPrimitive(PrimitiveElement element, const QStyleOption *option,
-                   QPainter *painter, const QWidget *widget) const {
+                   QPainter *painter, const QWidget *widget) const
+{
     if (element == QStyle::PE_FrameFocusRect) {
 
         qreal x = option->rect.x()+1;
@@ -19,10 +20,10 @@ void StyleTweaks::drawPrimitive(PrimitiveElement element, const QStyleOption *op
         return;
     }
 
-    if(element == QStyle::PE_IndicatorItemViewItemDrop) {
+    if (element == QStyle::PE_IndicatorItemViewItemDrop) {
         QStyleOption opt(*option);
         opt.rect.setLeft(0);
-        if(widget)
+        if (widget)
             opt.rect.setRight(widget->width());
 
         QProxyStyle::drawPrimitive(element, &opt, painter, widget);

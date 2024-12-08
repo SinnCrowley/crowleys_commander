@@ -13,10 +13,32 @@
   <property name="windowTitle">
    <string>Crowley's Commander</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="my_res.qrc">
+    <normaloff>:/icons/icons/crowleys_commander.ico</normaloff>:/icons/icons/crowleys_commander.ico</iconset>
+  </property>
   <property name="styleSheet">
-   <string notr="true">QWidget#mainWidget {
+   <string notr="true">* {color: #fff;}
+QWidget#mainWidget, QWidget#mainBar,
+QWidget#leftPanel, QWidget#rightPanel,
+QTreeView {
 	background: #333;
 	color: #fff;
+	border: 1px solid #444;
+}
+QMenuBar {spacing: 0;}
+QMenuBar::item {
+	padding: 3px 10px;
+}
+QMenu::item {
+	padding: 5px 15px;
+}
+QMenuBar::item:selected, QMenu::item:selected {
+	background: #222;
+	border: 1px solid #333;
+}
+QMenu:hover, QAction:hover {
+	background: #292929;
 }
 
 QPushButton {
@@ -74,6 +96,10 @@ QWidget#mainWidget QLineEdit {
 QWidget#mainWidget QLineEdit:focus {
 	background: #fa5252;
 	color: #000;
+}
+
+QTabWidget::tab-bar	{
+	alignment: left;
 }
 
 QTabBar::tab {
@@ -238,7 +264,7 @@ QHeaderView::up-arrow {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::FocusPolicy::NoFocus</enum>
+                <enum>Qt::NoFocus</enum>
                </property>
               </widget>
              </item>
@@ -255,7 +281,7 @@ QHeaderView::up-arrow {
                 <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -343,7 +369,7 @@ QHeaderView::up-arrow {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::FocusPolicy::ClickFocus</enum>
+                <enum>Qt::ClickFocus</enum>
                </property>
               </widget>
              </item>
@@ -360,7 +386,7 @@ QHeaderView::up-arrow {
                 <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -386,7 +412,7 @@ QHeaderView::up-arrow {
         <number>0</number>
        </property>
        <property name="sizeConstraint">
-        <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
+        <enum>QLayout::SetDefaultConstraint</enum>
        </property>
        <property name="leftMargin">
         <number>0</number>
@@ -403,7 +429,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="editBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F4 Edit</string>
@@ -413,7 +439,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="copyBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F5 Copy</string>
@@ -423,7 +449,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="moveBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F6 Move</string>
@@ -433,7 +459,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="folderBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F7 New Folder</string>
@@ -443,7 +469,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="deleteBtn">
          <property name="focusPolicy">
-          <enum>Qt::FocusPolicy::NoFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
          <property name="text">
           <string>F8 Delete</string>
@@ -461,7 +487,7 @@ QHeaderView::up-arrow {
      <x>0</x>
      <y>0</y>
      <width>930</width>
-     <height>25</height>
+     <height>24</height>
     </rect>
    </property>
    <property name="acceptDrops">
@@ -540,10 +566,10 @@ QHeaderView::up-arrow {
     <string>Return</string>
    </property>
    <property name="shortcutContext">
-    <enum>Qt::ShortcutContext::WidgetShortcut</enum>
+    <enum>Qt::WidgetShortcut</enum>
    </property>
    <property name="priority">
-    <enum>QAction::Priority::LowPriority</enum>
+    <enum>QAction::LowPriority</enum>
    </property>
   </action>
   <action name="actionOpen_with">
@@ -718,6 +744,8 @@ QHeaderView::up-arrow {
    </property>
   </action>
  </widget>
- <resources/>
+ <resources>
+  <include location="my_res.qrc"/>
+ </resources>
  <connections/>
 </ui>

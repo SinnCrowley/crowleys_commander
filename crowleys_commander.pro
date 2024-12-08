@@ -2,7 +2,7 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-CONFIG += c++17 console
+CONFIG += c++17
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -39,10 +39,31 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 DISTFILES += \
     config.ini \
     history.ini \
-    history_linux.ini
+    templates/config.ini \
+    templates/history_linux.ini \
+    templates/history_windows.ini
+
+# config files
+linux:configtemplates.path = /etc/crowleys_commander/templates
+linux:configtemplates.files = \
+    config_templates/config.ini \
+    config_templates/history_linux.ini
+
+linux:icons.path = /opt/$${TARGET}/icons
+linux:icons.files = icons/crowleys_commander.png
+
+# Установка .desktop файла
+linux:desktop.files = crowleys_commander.desktop
+linux:desktop.path = /usr/share/applications
+
+linux:INSTALLS += configtemplates icons desktop
+
+linux:QMAKE_POST_LINK += \
+    mkdir -p $$(HOME)/.config/crowleys_commander
 
 windows:LIBS += -lole32 -luuid
 linux:LIBS += -ludev
+macx:LIBS += -framework IOKit -framework CoreFoundation
 
 RESOURCES += \
     my_res.qrc

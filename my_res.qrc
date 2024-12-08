@@ -28,9 +28,6 @@
         <file>icons/select_all_512.png</file>
         <file>icons/select_file_512.png</file>
         <file>icons/settings_512.png</file>
-        <file>icons/share_512.png</file>
-        <file>icons/stop_sharing_512.png</file>
-        <file>icons/unpack_512.png</file>
         <file>icons/usb_96.png</file>
         <file>icons/back.png</file>
         <file>icons/network_96.png</file>
@@ -38,5 +35,7 @@
         <file>icons/up.png</file>
         <file>icons/left_arrow.png</file>
         <file>icons/right_arrow.png</file>
+        <file>icons/crowleys_commander.ico</file>
+        <file>icons/crowleys_commander.png</file>
     </qresource>
 </RCC>

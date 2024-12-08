@@ -1,7 +1,9 @@
+#include <QFileInfo>
 #include "mysortfilterproxymodel.h"
 #include "myfilesystemmodel.h"
 
-MySortFilterProxyModel::MySortFilterProxyModel(QString path, QWidget *parent) {
+MySortFilterProxyModel::MySortFilterProxyModel(QString path, QWidget *parent)
+{
     Q_UNUSED(parent);
     fsModel = new MyFileSystemModel(path, this);
 
@@ -10,8 +12,9 @@ MySortFilterProxyModel::MySortFilterProxyModel(QString path, QWidget *parent) {
     setSourceModel(fsModel);
 }
 
-bool MySortFilterProxyModel::lessThan(const QModelIndex &left, const QModelIndex &right) const {
-    MyFileSystemModel *fsModel = qobject_cast<MyFileSystemModel*>(sourceModel());
+bool MySortFilterProxyModel::lessThan(const QModelIndex &left, const QModelIndex &right) const
+{
+    MyFileSystemModel *fsModel = qobject_cast<MyFileSystemModel*> (sourceModel());
     bool asc = sortOrder() == Qt::AscendingOrder ? true : false;
 
     QFileInfo leftFileInfo  = fsModel->fileInfo(left);
@@ -40,9 +43,8 @@ bool MySortFilterProxyModel::lessThan(const QModelIndex &left, const QModelIndex
         QString rightType = rightFileInfo.suffix().toLower();
 
         // at first, trying to sort by extension
-        if (leftType != rightType) {
+        if (leftType != rightType)
             return leftType < rightType;
-        }
 
         // if extensions are the same, sorting by name
         QString leftName = leftFileInfo.fileName().toLower();

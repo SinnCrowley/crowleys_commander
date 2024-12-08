@@ -1,8 +1,6 @@
 #ifndef DEVICEWATCHER_H
 #define DEVICEWATCHER_H
 
-#include <QObject>
-#include <QStorageInfo>
 #include <QTimer>
 #include <QSet>
 
