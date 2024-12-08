@@ -1,6 +1,6 @@
 # crowleys_commander
 A cross-platform dual-pane file manager written in Qt.
-![screenshot of Crowley's Commander](/master/screenshot.png)
+![screenshot of Crowley's Commander](/screenshot.png)
 ## installation
 Windows: download .exe file with installer.
 Linux: you need to install packeges: git, g++, cmake, qt5-make, libqt5core5a, libqt5gui5, libqt5widgets5, libudev-dev, qtbase5-dev
