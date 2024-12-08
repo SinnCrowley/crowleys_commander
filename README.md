@@ -1,4 +1,4 @@
-# crowleys_commander
+# Crowley's Commander
 A cross-platform dual-pane file manager written in Qt.
 ![screenshot of Crowley's Commander](/screenshot.png)
 ## installation
