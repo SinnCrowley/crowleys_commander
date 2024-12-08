@@ -42,6 +42,7 @@
 #include <IOKit/IOKitLib.h>
 #include <IOKit/storage/IOMedia.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <QStandardPaths>
 #endif
 
 #ifdef Q_OS_LINUX
@@ -75,6 +76,11 @@
 #define HISTORY_PATH "./history.ini"
 #define CONFIG_TEMPLATE_PATH "config_templates/config.ini"
 #define HISTORY_TEMPLATE_PATH "config_templates/history_windows.ini"
+#elif defined Q_OS_MACOS
+#define CONFIG_PATH QCoreApplication::applicationDirPath() + "/../Resources/config.ini"
+#define HISTORY_PATH QCoreApplication::applicationDirPath() + "/../Resources/history.ini"
+#define CONFIG_TEMPLATE_PATH QCoreApplication::applicationDirPath() + "/../Resources/config_templates/config.ini"
+#define HISTORY_TEMPLATE_PATH QCoreApplication::applicationDirPath() + "/../Resources/config_templates/history_linux.ini"
 #else
 #define CONFIG_PATH QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/config.ini"
 #define HISTORY_PATH QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/history.ini"

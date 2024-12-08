@@ -65,5 +65,14 @@ windows:LIBS += -lole32 -luuid
 linux:LIBS += -ludev
 macx:LIBS += -framework IOKit -framework CoreFoundation
 
+macx:configtemplates.path = Contents/Resources/config_templates
+macx:configtemplates.files = \
+    config_templates/config.ini \
+    config_templates/history_linux.ini
+
+macx:ICON = icons/crowleys_commander.icns
+macx:CONFIG += app_bundle
+macx:QMAKE_BUNDLE_DATA += configtemplates
+
 RESOURCES += \
     my_res.qrc
