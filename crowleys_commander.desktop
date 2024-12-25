@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Crowley's Commander
+GenericName=File Manager
+Comment=Dual-panel file manager
+Exec=/opt/crowleys_commander/bin/crowleys_commander
+Icon=/opt/crowleys_commander/icons/crowleys_commander.png
+Terminal=false
+Categories=Utility;FileManager;
