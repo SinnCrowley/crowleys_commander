@@ -39,9 +39,9 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 DISTFILES += \
     config.ini \
     history.ini \
-    templates/config.ini \
-    templates/history_linux.ini \
-    templates/history_windows.ini
+    config_templates/config.ini \
+    config_templates/history_linux.ini \
+    config_templates/history_windows.ini
 
 # config files
 linux:configtemplates.path = /etc/crowleys_commander/templates
@@ -52,7 +52,7 @@ linux:configtemplates.files = \
 linux:icons.path = /opt/$${TARGET}/icons
 linux:icons.files = icons/crowleys_commander.png
 
-# Установка .desktop файла
+# .desktop file installing (Linux)
 linux:desktop.files = crowleys_commander.desktop
 linux:desktop.path = /usr/share/applications
 

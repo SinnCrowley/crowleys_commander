@@ -37,7 +37,7 @@ private:
     void tabsUpdate(QTabWidget *tabWidget);
     void diskStatusUpdate(QTabWidget *tabWidget);
     void clearLayout(QLayout *layout);
-    void deviceUpdate(const QString &device);
+    void deviceUpdate();
     void addToHistory(QString path, int currentTab, QString panel);
     void initialize();
 
@@ -51,6 +51,7 @@ private slots:
     void tabBar_indexChanged(int index);
     void contextMenu_requested(const QPoint &point);
     void viewHeader_clicked(int localIndex);
+    void focusPathEdit();
 
     // File menu actions
     void on_actionNew_File_triggered();
@@ -64,6 +65,7 @@ private slots:
     void on_actionCut_triggered();
     void on_actionCopy_triggered();
     void on_actionPaste_triggered();
+    void on_actionCopy_as_path_triggered();
 
     // Selection menu actions
     void on_actionSelect_file_triggered();
@@ -91,7 +93,9 @@ private slots:
     void on_folderBtn_clicked();
     void on_deleteBtn_clicked();
 
-    void upBtn_clicked();
+    // navigation buttons actions
+    void navigate(QString position, const QString direction);
+    void navigationButton_clicked();
 
 private:
     Ui::MainWindow *ui;

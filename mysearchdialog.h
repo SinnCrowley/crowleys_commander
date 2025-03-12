@@ -27,7 +27,7 @@ private slots:
 private:
     Ui::MySearchDialog *ui;
     QString fileToShow;
-    bool success;
+    bool success = false;
     void findRecursively(const QString &path, const QString &pattern, QStringList *result);
 };
 

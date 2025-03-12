@@ -22,17 +22,6 @@ MyFileSystemModel::MyFileSystemModel(const QString path, QObject *parent)
     setRootPath(path);
 }
 
-int MyFileSystemModel::rowCount(const QModelIndex &parent) const
-{
-    return parent.isValid() ? 0 : fileCount;
-}
-
-int MyFileSystemModel::columnCount(const QModelIndex &parent) const
-{
-    Q_UNUSED(parent);
-    return 4;
-}
-
 
 void MyFileSystemModel::setRootPath(const QString &path)
 {
@@ -49,7 +38,7 @@ void MyFileSystemModel::setRootPath(const QString &path)
     if (!path.isEmpty())
         fileSystemWatcher->addPath(path);
 
-    while(canFetchMore(QModelIndex()))
+    while (canFetchMore(QModelIndex()))
         fetchMore(QModelIndex());
 }
 
@@ -82,7 +71,18 @@ QString MyFileSystemModel::filePath(const QModelIndex &index) const
     return fileList.at(index.row()).absoluteFilePath();
 }
 
+QModelIndex MyFileSystemModel::index(const QString &path, int column) const
+{
+    for (int row = 0; row < fileList.size(); ++row) {
+        if (fileList[row].absoluteFilePath() == path)
+            return createIndex(row, column, const_cast<QFileInfo*>(&fileList[row]));
+    }
 
+    return QModelIndex();
+}
+
+
+// Data loading
 bool MyFileSystemModel::canFetchMore(const QModelIndex &parent) const
 {
     if (parent.isValid())
@@ -110,6 +110,18 @@ void MyFileSystemModel::fetchMore(const QModelIndex &parent)
     emit numberPopulated(m_path, start, itemsToFetch, int(fileList.size()));
 }
 
+
+// Data presentation
+int MyFileSystemModel::rowCount(const QModelIndex &parent) const
+{
+    return parent.isValid() ? 0 : fileCount;
+}
+
+int MyFileSystemModel::columnCount(const QModelIndex &parent) const
+{
+    Q_UNUSED(parent);
+    return 4;
+}
 
 QVariant MyFileSystemModel::data(const QModelIndex &index, int role) const
 {
@@ -202,7 +214,7 @@ QVariant MyFileSystemModel::data(const QModelIndex &index, int role) const
 
 QVariant MyFileSystemModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
-    if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
+    if (role == Qt::DisplayRole) {
         switch (section) {
         case 0:
             return tr("Name");
@@ -490,7 +502,6 @@ bool MyFileSystemModel::dropMimeData(const QMimeData *data,
     if (destPath == (filePaths[0].left(filePaths[0].lastIndexOf(QChar('/'))) + '/'))
         return false;
 
-
     QMessageBox msgCopyConfirm;
     msgCopyConfirm.setWindowTitle("Copy files");
     msgCopyConfirm.setText("Do you want to copy files (" + QString::number(filePaths.length()) + ")?");
@@ -514,17 +525,8 @@ QDir::Filters MyFileSystemModel::filter()
     return filters;
 }
 
-QModelIndex MyFileSystemModel::index(const QString &path, int column) const
-{
-    for (int row = 0; row < fileList.size(); ++row) {
-        if (fileList[row].absoluteFilePath() == path)
-            return createIndex(row, column, const_cast<QFileInfo*>(&fileList[row]));
-    }
 
-    return QModelIndex();
-}
-
-
+// Filesystem changes
 void MyFileSystemModel::onDirectoryChanged(const QString &path)
 {
     QDir dir(path);

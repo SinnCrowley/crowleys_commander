@@ -14,7 +14,7 @@ MySortFilterProxyModel::MySortFilterProxyModel(QString path, QWidget *parent)
 
 bool MySortFilterProxyModel::lessThan(const QModelIndex &left, const QModelIndex &right) const
 {
-    MyFileSystemModel *fsModel = qobject_cast<MyFileSystemModel*> (sourceModel());
+    MyFileSystemModel *fsModel = this->fsModel;
     bool asc = sortOrder() == Qt::AscendingOrder ? true : false;
 
     QFileInfo leftFileInfo  = fsModel->fileInfo(left);

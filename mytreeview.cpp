@@ -31,14 +31,12 @@ MyTreeView::MyTreeView(const QString path, QWidget *parent)
     setDragDropMode(QAbstractItemView::DragDrop);
     setDefaultDropAction(Qt::CopyAction);
     setDropIndicatorShown(true);
-    dropIndicatorPosition();
     setAcceptDrops(true);
 
     // change selection cursor to solid rectangle
     setStyle(new StyleTweaks);
     setItemDelegate(new EditRectangleDelegate);
 
-    //header()->moveSection(1, 2);
     setColumnWidth(1, 70);
     setColumnWidth(2, 65);
     setColumnWidth(3, 110);
@@ -145,7 +143,7 @@ void MyTreeView::mouseMoveEvent(QMouseEvent *event)
         return;
     }
 
-    if (!dragging && (event->pos() - startPos).manhattanLength() < QApplication::startDragDistance()+12)
+    if (!dragging && (event->pos() - startPos).manhattanLength() < QApplication::startDragDistance() + 15)
         return;
 
     dragging = true;
@@ -209,10 +207,10 @@ void MyTreeView::moveCursorWithoutSelection(int key)
 
     switch (key) {
     case Qt::Key_Up:
-        nextIndex = this->model()->index(currentIndex.row() - 1, currentIndex.column(), currentIndex.parent());
+        nextIndex = this->model()->index(currentIndex.row() - 1, 0, currentIndex.parent());
         break;
     case Qt::Key_Down:
-        nextIndex = this->model()->index(currentIndex.row() + 1, currentIndex.column(), currentIndex.parent());
+        nextIndex = this->model()->index(currentIndex.row() + 1, 0, currentIndex.parent());
         break;
     case Qt::Key_Home:
         nextIndex = this->model()->index(0, 0, currentIndex.parent());

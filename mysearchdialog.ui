@@ -17,6 +17,26 @@
    <iconset resource="my_res.qrc">
     <normaloff>:/icons/icons/search_file_512.png</normaloff>:/icons/icons/search_file_512.png</iconset>
   </property>
+  <property name="styleSheet">
+   <string notr="true">QDialog#MySearchDialog {
+	background: #333;
+}
+
+QLineEdit, QListWidget {
+	background: #222;
+	border: 1px solid #444;
+}
+
+* { color: #fff; }
+QPushButton {
+	border: 1px solid #333;
+	background: #222;
+	padding: 5px 7px;
+	border-radius: 3px;
+}
+QPushButton:hover { background: #292929; }
+QPushButton:pressed {	background: #222; }</string>
+  </property>
   <property name="modal">
    <bool>false</bool>
   </property>

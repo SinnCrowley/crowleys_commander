@@ -53,8 +53,6 @@ void MySearchDialog::findRecursively(const QString &path, const QString &pattern
         findRecursively(prefix + dir, pattern, result);
 }
 
-
-
 void MySearchDialog::on_browseButton_clicked()
 {
     QFileDialog *fileDialog = new QFileDialog();

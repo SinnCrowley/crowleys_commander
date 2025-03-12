@@ -1,11 +1,12 @@
-/*  TODO
+/*  BUG FIXES:
  *
- *  focus after any operation
+ *  !!!!! focus after any operation
  *
- *  check each tab after filesystem changes and set to root if folder was removed
+ *  !!!!! fix progress bars
  *
- *  fix working with logical drives
+ *  check each tab after filesystem changes and set to root if folder was removed externally
  *
+ *  !!!!! fix working with logical drives
  *
  *  fix selection on right arrow in some cases
  *
@@ -13,21 +14,20 @@
  *
  *  network drives on macOS (?)
  *
- *  fix progress bars
  *
- *  treeview header sections remove spacing near sort indicators
- *
- *  on device connection add only new device (do not reload all panel)
+ *  NEW FEATURES:
  *
  *  on file cutting set the icons a bit transparent (?)
  *
  *  add pack/unpack, settings, group rename, copy/delete/move in background
  *
- *  add to menu: copy path, properties, share
+ *  add to menu: properties, share
  *
  *  add function in settings select or not select file extension while rename
  *
- *  add full UI customization in settings (colors, fonts, sizes)
+ *  add full UI customization in settings (colors, fonts, sizes, keyboard shortcuts)
+ *
+ *  add FTP and SSH connections
 */
 
 #include <QtGlobal>
@@ -93,26 +93,26 @@
 bool updateShortcuts(QString path)
 {
     CoInitialize(NULL);
-    IShellLinkW* psl = nullptr;
-    HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLinkW, (LPVOID*)&psl);
+    IShellLinkW *psl = nullptr;
+    HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLinkW, (LPVOID*) &psl);
 
     if (SUCCEEDED(hr)) {
-        IPersistFile* ppf = nullptr;
-        hr = psl->QueryInterface(IID_IPersistFile, (void**)&ppf);
+        IPersistFile *ppf = nullptr;
+        hr = psl->QueryInterface(IID_IPersistFile, (void**) &ppf);
 
         if (SUCCEEDED(hr)) {
             hr = ppf->Load(QFileInfo(path).absoluteFilePath().toStdWString().c_str(), STGM_READWRITE);
             if (SUCCEEDED(hr)) {
-                // Пытаемся найти новую цель ярлыка
+                // Try to find new shortcut target
                 hr = psl->Resolve(NULL, SLR_UPDATE | SLR_NO_UI);
                 if (SUCCEEDED(hr)) {
-                    // Получаем обновленный путь
+                    // Get updated path
                     WIN32_FIND_DATAW wfd;
                     WCHAR szNewPath[MAX_PATH];
                     hr = psl->GetPath(szNewPath, MAX_PATH, &wfd, SLGP_UNCPRIORITY);
 
                     if (SUCCEEDED(hr)) {
-                        // Сохраняем обновленный путь в ярлыке
+                        // Save new path in the shortcut
                         hr = ppf->Save(NULL, TRUE);
                         ppf->Release();
                         psl->Release();
@@ -227,10 +227,13 @@ void MainWindow::directoryChange(QString path)
 
     QTabWidget *tabWidget;
 
-    if (qApp->focusWidget()->objectName() == "left" || qApp->focusWidget()->objectName() == "diskListLeft")
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
-    else
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+    QString focusedObject = qApp->focusWidget()->objectName();
+
+    if (focusedObject.contains("left", Qt::CaseInsensitive))
+        tabWidget = ui->leftBar;
+    else if (focusedObject.contains("right", Qt::CaseInsensitive))
+        tabWidget = ui->rightBar;
+    else return;
 
     MyTreeView *view = tabWidget->currentWidget()->findChild<MyTreeView*>();
     QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
@@ -316,13 +319,8 @@ void MainWindow::tabsUpdate(QTabWidget *tabWidget)
 // update disk status bar
 void MainWindow::diskStatusUpdate(QTabWidget *tabWidget)
 {
-    if (!tabWidget->currentWidget()->findChild<MyTreeView*>())
-        return;
-
-    MyTreeView *view = tabWidget->currentWidget()->findChild<MyTreeView*>();
-    MySortFilterProxyModel *sortModel = view->sortModel;
-    MyFileSystemModel *fsModel = sortModel->fsModel;
-    QString path = fsModel->rootPath();
+    QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
+    QString path = pathEdit->text();
     QStorageInfo storageInfo = QStorageInfo(path);
 
     QString storageSize = QString("Free space: %1 Gb / ")
@@ -415,10 +413,8 @@ QStringList MainWindow::getFileList()
 }
 
 // update list of disks on device connect/disconnect
-void MainWindow::deviceUpdate(const QString &device)
+void MainWindow::deviceUpdate()
 {
-    Q_UNUSED(device);
-
     clearLayout(ui->diskButtonsLeftLayout);
     clearLayout(ui->diskButtonsRightLayout);
 
@@ -461,8 +457,8 @@ void MainWindow::deviceUpdate(const QString &device)
             ui->diskButtonsLeftLayout->addWidget(leftButton);
             ui->diskButtonsRightLayout->addWidget(rightButton);
 
-            connect(leftButton, SIGNAL(clicked()), this, SLOT(diskButton_clicked()));
-            connect(rightButton, SIGNAL(clicked()), this, SLOT(diskButton_clicked()));
+            connect(leftButton, &QPushButton::clicked, this, &MainWindow::diskButton_clicked);
+            connect(rightButton, &QPushButton::clicked, this, &MainWindow::diskButton_clicked);
 
             // 1: usb, 2: network, 3: cd, 4: hdd/ssd
             int diskType = 4;
@@ -687,69 +683,58 @@ MainWindow::MainWindow(QWidget *parent)
     qApp->installEventFilter(this);
 
     initialize();
+    deviceUpdate();
 
     connect(deviceWatcher, &DeviceWatcher::deviceConnected, this, &MainWindow::deviceUpdate);
     connect(deviceWatcher, &DeviceWatcher::deviceDisconnected, this, &MainWindow::deviceUpdate);
 
-    QPushButton *leftUpButton = new QPushButton(this);
-    QPushButton *rightUpButton = new QPushButton(this);
-    leftUpButton->setObjectName("left");
-    leftUpButton->setIcon(QPixmap(":/icons/icons/up.png"));
-    leftUpButton->setMaximumSize(36, 36);
-    leftUpButton->setFocusPolicy(Qt::NoFocus);
+    connect(ui->leftUpButton, &QPushButton::clicked, this, &MainWindow::navigationButton_clicked);
+    connect(ui->rightUpButton, &QPushButton::clicked, this, &MainWindow::navigationButton_clicked);
+    connect(ui->leftBackButton, &QPushButton::clicked, this, &MainWindow::navigationButton_clicked);
+    connect(ui->rightBackButton, &QPushButton::clicked, this, &MainWindow::navigationButton_clicked);
+    connect(ui->leftForwardButton, &QPushButton::clicked, this, &MainWindow::navigationButton_clicked);
+    connect(ui->rightForwardButton, &QPushButton::clicked, this, &MainWindow::navigationButton_clicked);
 
-    rightUpButton->setObjectName("right");
-    rightUpButton->setIcon(QPixmap(":/icons/icons/up.png"));
-    rightUpButton->setMaximumSize(36, 36);
-    rightUpButton->setFocusPolicy(Qt::NoFocus);
-
-    ui->statusDiskLeftLayout->addWidget(leftUpButton);
-    ui->statusDiskRightLayout->addWidget(rightUpButton);
-
-    connect(leftUpButton, &QPushButton::clicked, this, &MainWindow::upBtn_clicked);
-    connect(rightUpButton, &QPushButton::clicked, this, &MainWindow::upBtn_clicked);
-
-
-    QTabWidget *leftBar = new QTabWidget(this);
-    leftBar->setObjectName("leftBar");
-    leftBar->setMovable(true);
-    ui->leftPanelLayout->addWidget(leftBar);
-
-    connect(leftBar, &QTabWidget::tabBarDoubleClicked, this, &MainWindow::tabBar_doubleClicked);
-    connect(leftBar, &QTabWidget::currentChanged, this, &MainWindow::tabBar_indexChanged);
+    connect(ui->leftBar, &QTabWidget::tabBarDoubleClicked, this, &MainWindow::tabBar_doubleClicked);
+    connect(ui->leftBar, &QTabWidget::currentChanged, this, &MainWindow::tabBar_indexChanged);
+    connect(ui->rightBar, &QTabWidget::tabBarDoubleClicked, this, &MainWindow::tabBar_doubleClicked);
+    connect(ui->rightBar, &QTabWidget::currentChanged, this, &MainWindow::tabBar_indexChanged);
 
     QSettings *settings = new QSettings(HISTORY_PATH, QSettings::IniFormat);
     settings->beginGroup("left_tabs");
     QStringList keys = settings->childKeys();
     int idx = settings->value("active_tab").toInt();
     foreach (const QString key, keys) {
-        if(key[0].isDigit())
-            createView(leftBar, settings->value(key).toString());
+        if(key[0].isDigit()) {
+            if (QDir(settings->value(key).toString()).exists()) {
+                createView(ui->leftBar, settings->value(key).toString());
+            } else {
+                QDir *rootDir = new QDir(settings->value(key).toString());
+                createView(ui->leftBar, rootDir->rootPath());
+                QMessageBox::information(nullptr, "Error",  settings->value(key).toString() + " no longer exists!");
+            }
+        }
     }
-    leftBar->setCurrentIndex(idx);
+    ui->leftBar->setCurrentIndex(idx);
     settings->endGroup();
-
-    diskStatusUpdate(leftBar);
-
-    QTabWidget *rightBar = new QTabWidget(this);
-    rightBar->setObjectName("rightBar");
-    rightBar->setMovable(true);
-    ui->rightPanelLayout->addWidget(rightBar);
-
-    connect(rightBar, &QTabWidget::tabBarDoubleClicked, this, &MainWindow::tabBar_doubleClicked);
-    connect(rightBar, &QTabWidget::currentChanged, this, &MainWindow::tabBar_indexChanged);
 
     settings->beginGroup("right_tabs");
     keys.clear();
     keys = settings->childKeys();
     idx = settings->value("active_tab").toInt();
     foreach(const QString key, keys) {
-        if(key[0].isDigit())
-            createView(rightBar, settings->value(key).toString());
+        if(key[0].isDigit()) {
+            if (QDir(settings->value(key).toString()).exists()) {
+                createView(ui->rightBar, settings->value(key).toString());
+            } else {
+                QDir *rootDir = new QDir(settings->value(key).toString());
+                createView(ui->rightBar, rootDir->rootPath());
+                QMessageBox::information(nullptr, "Error",  settings->value(key).toString() + " no longer exists!");
+            }
+        }
     }
-    rightBar->setCurrentIndex(idx);
+    ui->rightBar->setCurrentIndex(idx);
     settings->endGroup();
-
 
     settings = new QSettings(CONFIG_PATH, QSettings::IniFormat);
     settings->beginGroup("config");
@@ -759,14 +744,14 @@ MainWindow::MainWindow(QWidget *parent)
     MyFileSystemModel *fsModel;
 
     if(settings->value("show_hidden").toInt()) {
-        for(int i = 0; i < leftBar->count(); i++) {
-            view = leftBar->widget(i)->findChild<MyTreeView*>();
+        for(int i = 0; i < ui->leftBar->count(); i++) {
+            view = ui->leftBar->widget(i)->findChild<MyTreeView*>();
             sortModel = view->sortModel;
             fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::Hidden);
         }
-        for(int i = 0; i < rightBar->count(); i++) {
-            view = rightBar->widget(i)->findChild<MyTreeView*>();
+        for(int i = 0; i < ui->rightBar->count(); i++) {
+            view = ui->rightBar->widget(i)->findChild<MyTreeView*>();
             sortModel = view->sortModel;
             fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::Hidden);
@@ -775,15 +760,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     settings->endGroup();
 
-    diskStatusUpdate(rightBar);
-
     connect(ui->diskListLeft, &QComboBox::textActivated, this, &MainWindow::diskList_textActivated);
     connect(ui->diskListRight, &QComboBox::textActivated, this, &MainWindow::diskList_textActivated);
 
-    leftBar->setFocusPolicy(Qt::NoFocus);
-    rightBar->setFocusPolicy(Qt::NoFocus);
-
-    deviceUpdate("");
 
     QShortcut *editShortcut = new QShortcut(QKeySequence(Qt::Key_F4), this);
     connect(editShortcut, &QShortcut::activated, this, &MainWindow::on_editBtn_clicked);
@@ -800,11 +779,31 @@ MainWindow::MainWindow(QWidget *parent)
     QShortcut *deleteShortcut = new QShortcut(QKeySequence(Qt::Key_F8), this);
     connect(deleteShortcut, &QShortcut::activated, this, &MainWindow::on_deleteBtn_clicked);
 
+    QShortcut *focusPathEditShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_P), this);
+    connect(focusPathEditShortcut, &QShortcut::activated, this, &MainWindow::focusPathEdit);
+
+    QShortcut *navigateUpShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Up), this);
+    connect(navigateUpShortcut, &QShortcut::activated, this, [this]() {
+        navigate("", "up");
+    });
+
+    QShortcut *navigateForwardShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Right), this);
+    connect(navigateForwardShortcut, &QShortcut::activated, this, [this]() {
+        navigate("", "forward");
+    });
+
+    QShortcut *navigateBackShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Left), this);
+    connect(navigateBackShortcut, &QShortcut::activated, this, [this]() {
+        navigate("", "back");
+    });
+
 #ifdef Q_OS_MACOS
     QShortcut *macHidden = new QShortcut(QKeySequence(Qt::SHIFT | Qt::CTRL | Qt::Key_H), this);
     connect(macHidden, &QShortcut::activated, this, &MainWindow::on_actionShow_Hide_hidden_files_triggered);
 #endif
+
 }
+
 
 MainWindow::~MainWindow()
 {
@@ -860,9 +859,9 @@ void MainWindow::pathEdit_returnPressed()
 
     QTabWidget *tabWidget;
     if (pathEdit->objectName() == "left")
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+        tabWidget = ui->leftBar;
     else
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
 
     MyTreeView *view = tabWidget->currentWidget()->findChild<MyTreeView*>();
     MySortFilterProxyModel *sortModel = view->sortModel;
@@ -985,6 +984,8 @@ void MainWindow::contextMenu_requested(const QPoint &point)
     cutAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_X));
     QAction *copyAction = new QAction("Copy");
     copyAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_C));
+    QAction *copyAsPathAction = new QAction("Copy as path");
+    copyAsPathAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
     QAction *pasteAction = new QAction("Paste");
     pasteAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_V));
     QAction *createShortcutAction = new QAction("Create shortcut");
@@ -1003,6 +1004,7 @@ void MainWindow::contextMenu_requested(const QPoint &point)
     connect(renameAction, &QAction::triggered, this, &MainWindow::on_actionRename_triggered);
     connect(cutAction, &QAction::triggered, this, &MainWindow::on_actionCut_triggered);
     connect(copyAction, &QAction::triggered, this, &MainWindow::on_actionCopy_triggered);
+    connect(copyAsPathAction, &QAction::triggered, this, &MainWindow::on_actionCopy_as_path_triggered);
     connect(pasteAction, &QAction::triggered, this, &MainWindow::on_actionPaste_triggered);
     connect(createShortcutAction, &QAction::triggered, this, &MainWindow::on_actionCreate_Shortcut_triggered);
     connect(newFileAction, &QAction::triggered, this, &MainWindow::on_actionNew_File_triggered);
@@ -1017,6 +1019,7 @@ void MainWindow::contextMenu_requested(const QPoint &point)
     menu->addSeparator();
     menu->addAction(cutAction);
     menu->addAction(copyAction);
+    menu->addAction(copyAsPathAction);
     menu->addAction(pasteAction);
     menu->addSeparator();
     menu->addAction(renameAction);
@@ -1056,6 +1059,24 @@ void MainWindow::viewHeader_clicked(int localIndex)
         else
             view->sortByColumn(localIndex, Qt::DescendingOrder);
     }
+}
+
+void MainWindow::focusPathEdit()
+{
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+
+    if (!view)
+        return;
+
+    QTabWidget *tabWidget;
+
+    if(view->objectName() == "left")
+        tabWidget = ui->leftBar;
+    else
+        tabWidget = ui->rightBar;
+
+    QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
+    pathEdit->setFocus();
 }
 
 
@@ -1443,6 +1464,26 @@ void MainWindow::on_actionPaste_triggered()
     view->clearSelection();
 }
 
+void MainWindow::on_actionCopy_as_path_triggered()
+{
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget()))
+        return;
+
+    MyTreeView *view = static_cast<MyTreeView*>(qApp->focusWidget());
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = view->sortModel->fsModel;
+
+    QModelIndex fsModelIndex = sortModel->mapToSource(view->selectionModel()->currentIndex());
+    QFileInfo info = fsModel->fileInfo(fsModelIndex);
+
+    QString path = info.absoluteFilePath();
+
+    if (path.contains("file:///"))
+        path.remove(0,8);
+
+    QClipboard *clipboard = QApplication::clipboard();
+    clipboard->setText(QDir::toNativeSeparators(path));
+}
 
 // selection menu actions
 void MainWindow::on_actionSelect_file_triggered()
@@ -1503,9 +1544,9 @@ void MainWindow::on_actionClose_this_tab_triggered()
 
     QTabWidget *tabWidget;
     if (qApp->focusWidget()->objectName() == "left")
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+        tabWidget = ui->leftBar;
     else
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
 
     if (tabWidget->count() == 1)
         return;
@@ -1534,9 +1575,9 @@ void MainWindow::on_actionClose_all_tabs_triggered()
     QTabWidget *tabWidget;
 
     if (qApp->focusWidget()->objectName() == "left")
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+        tabWidget = ui->leftBar;
     else
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
 
     int cnt = tabWidget->count();
 
@@ -1573,9 +1614,9 @@ void MainWindow::on_actionSwitch_to_the_next_tab_triggered()
 
     QTabWidget *tabWidget;
     if (qApp->focusWidget()->objectName() == "left")
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+        tabWidget = ui->leftBar;
     else
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
 
     if (tabWidget->currentIndex() + 1 < tabWidget->count())
         tabWidget->setCurrentIndex(tabWidget->currentIndex() + 1);
@@ -1590,9 +1631,9 @@ void MainWindow::on_actionSwitch_to_the_previous_tab_triggered()
 
     QTabWidget *tabWidget;
     if (qApp->focusWidget()->objectName() == "left")
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+        tabWidget = ui->leftBar;
     else
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
 
     if (tabWidget->currentIndex() - 1 >= 0)
         tabWidget->setCurrentIndex(tabWidget->currentIndex() - 1);
@@ -1607,9 +1648,9 @@ void MainWindow::on_actionOpen_the_folder_in_the_new_tab_triggered()
 
     QTabWidget *tabWidget;
     if (qApp->focusWidget()->objectName() == "left")
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+        tabWidget = ui->leftBar;
     else
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
 
     MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
     MySortFilterProxyModel *sortModel = view->sortModel;
@@ -1632,9 +1673,9 @@ void MainWindow::on_actionOpen_the_folder_in_the_new_tab_in_another_bar_triggere
 
     QTabWidget *tabWidget;
     if( qApp->focusWidget()->objectName() == "right")
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+        tabWidget = ui->leftBar;
     else
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
 
     MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
     MySortFilterProxyModel *sortModel = view->sortModel;
@@ -1694,7 +1735,7 @@ void MainWindow::on_actionFile_search_triggered()
 
 void MainWindow::on_actionShow_Hide_hidden_files_triggered()
 {
-    QTabWidget *tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+    QTabWidget *tabWidget = ui->leftBar;
     MyTreeView *view;
     MySortFilterProxyModel *sortModel;
     MyFileSystemModel *fsModel;
@@ -1709,7 +1750,7 @@ void MainWindow::on_actionShow_Hide_hidden_files_triggered()
             fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::Hidden);
         }
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
         for (int i = 0; i < tabWidget->count(); i++) {
             view = tabWidget->widget(i)->findChild<MyTreeView*>();
             sortModel = view->sortModel;
@@ -1724,7 +1765,7 @@ void MainWindow::on_actionShow_Hide_hidden_files_triggered()
             fsModel = sortModel->fsModel;
             fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files);
         }
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
         for (int i = 0; i < tabWidget->count(); i++) {
             view = tabWidget->widget(i)->findChild<MyTreeView*>();
             sortModel = view->sortModel;
@@ -1787,6 +1828,7 @@ void MainWindow::open_Terminal_triggered()
             QStringList args;
             args << "-e" << QString("bash -c 'cd \"%1\" && exec bash'").arg(path);
             QProcess::startDetached(terminal, args);
+            break;
         }
     }
 #endif
@@ -1845,9 +1887,9 @@ void MainWindow::on_copyBtn_clicked()
     // find target tabwidget, view and models
     QTabWidget *tabWidget;
     if (sourceView->objectName() == "left")
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
     else
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+        tabWidget = ui->leftBar;
 
     MyTreeView *targetView = tabWidget->currentWidget()->findChild<MyTreeView*>();
     MyFileSystemModel *targetFsModel = targetView->sortModel->fsModel;
@@ -1888,9 +1930,9 @@ void MainWindow::on_moveBtn_clicked()
     // find target tabwidget, view and models
     QTabWidget *tabWidget;
     if (sourceView->objectName() == "left")
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+        tabWidget = ui->rightBar;
     else
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
+        tabWidget = ui->leftBar;
 
     MyTreeView *targetView = tabWidget->currentWidget()->findChild<MyTreeView*>();
     MySortFilterProxyModel *sortModel = targetView->sortModel;
@@ -1932,96 +1974,96 @@ void MainWindow::on_deleteBtn_clicked()
 }
 
 
-// up button action
-void MainWindow::upBtn_clicked()
-{
-    QPushButton *button = static_cast<QPushButton*> (sender());
-    QTabWidget *tabWidget;
+// history and navigation (up, back, forward)
+void MainWindow::navigate(QString position, const QString direction) {
+    // take position of current focus, if not set
+    if (position.isEmpty()) {
+        QString focusedObject = qApp->focusWidget()->objectName();
+        if (focusedObject.contains("left", Qt::CaseInsensitive))
+            position = "left";
+        else if (focusedObject.contains("right", Qt::CaseInsensitive))
+            position = "right";
+        else return;
+    }
 
-    if (button->objectName() == "left")
-        tabWidget = ui->leftPanel->findChild<QTabWidget*>();
-    else
-        tabWidget = ui->rightPanel->findChild<QTabWidget*>();
+    // setting tabWidget, path edit and current tab
+    QTabWidget *tabWidget = (position == "left") ? ui->leftBar : ui->rightBar;
 
-    MyTreeView *view = static_cast<MyTreeView*>(tabWidget->findChild<MyTreeView*>());
-    if (!view)
-        return;
-
-    QLineEdit *pathEdit = tabWidget->findChild<QLineEdit*>();
+    MyTreeView *view = tabWidget->currentWidget()->findChild<MyTreeView*>();
+    QLineEdit *pathEdit = static_cast<QLineEdit*>(tabWidget->currentWidget()->findChild<QLineEdit*>());
     QString currentPath = pathEdit->text();
+    int currentTab = tabWidget->currentIndex();
 
-    if (!QDir(currentPath).isRoot()) {
-        view->setFocus();
-        directoryChange(currentPath + "..");
+    if (direction == "up") {
+        if (!QDir(currentPath).isRoot()) {
+            view->setFocus();
+            directoryChange(currentPath + "..");
+        }
+    } else if (direction == "back") {
+        if (position == "left" && !historyBackLeft[currentTab].isEmpty()) {
+            historyForwardLeft[currentTab].push(currentPath);
+            QString previousPath = historyBackLeft[currentTab].pop();
+            isNavTriggered = true;
+            directoryChange(previousPath);
+        }
+        else {
+            if (!historyBackRight[currentTab].isEmpty()) {
+                historyForwardRight[currentTab].push(currentPath);
+                QString previousPath = historyBackRight[currentTab].pop();
+                isNavTriggered = true;
+                directoryChange(previousPath);
+            }
+        }
+    } else if (direction == "forward") {
+        if (position == "left" && !historyForwardLeft[currentTab].isEmpty()) {
+            historyBackLeft[currentTab].push(currentPath);
+            QString nextPath = historyForwardLeft[currentTab].pop();
+            isNavTriggered = true;
+            directoryChange(nextPath);
+        }
+        else {
+            if (!historyForwardRight[currentTab].isEmpty()) {
+                historyBackRight[currentTab].push(currentPath);
+                QString nextPath = historyForwardRight[currentTab].pop();
+                isNavTriggered = true;
+                directoryChange(nextPath);
+            }
+        }
     }
 }
 
-// history and buttons back/forward
+void MainWindow::navigationButton_clicked()
+{
+    QPushButton *button = static_cast<QPushButton*> (sender());
+    QString buttonName = button->objectName();
+
+    QString direction;
+    QString position;
+
+    if (buttonName.contains("left", Qt::CaseInsensitive))
+        position = "left";
+    else if (buttonName.contains("right", Qt::CaseInsensitive))
+        position = "right";
+
+    if (buttonName.contains("up", Qt::CaseInsensitive))
+        direction = "up";
+    else if (buttonName.contains("back", Qt::CaseInsensitive))
+        direction = "back";
+    else if (buttonName.contains("forward", Qt::CaseInsensitive))
+        direction = "forward";
+
+    navigate(position, direction);
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
     if (event->type() == QEvent::MouseButtonPress) {
-
-        if (!qobject_cast<MyTreeView*> (qApp->focusWidget()))
-            return QMainWindow::eventFilter(obj, event);
-
-        MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
-        QTabWidget *tabWidget;
         QMouseEvent *mouseEvent = static_cast<QMouseEvent*> (event);
-
         if (mouseEvent->button() == Qt::BackButton) {
-            if (view->objectName() == "left") {
-                tabWidget = ui->leftPanel->findChild<QTabWidget*>();
-                QLineEdit *pathEdit = static_cast<QLineEdit*>(tabWidget->currentWidget()->findChild<QLineEdit*>());
-                QString currentPath = pathEdit->text();
-                int currentTab = tabWidget->currentIndex();
-
-                if (!historyBackLeft[currentTab].isEmpty()) {
-                    historyForwardLeft[currentTab].push(currentPath);
-                    QString previousPath = historyBackLeft[currentTab].pop();
-                    isNavTriggered = true;
-                    directoryChange(previousPath);
-                }
-            } else {
-                tabWidget = ui->rightPanel->findChild<QTabWidget*>();
-                QLineEdit *pathEdit = static_cast<QLineEdit*>(tabWidget->currentWidget()->findChild<QLineEdit*>());
-                QString currentPath = pathEdit->text();
-                int currentTab = tabWidget->currentIndex();
-
-                if (!historyBackRight[currentTab].isEmpty()) {
-                    historyForwardRight[currentTab].push(currentPath);
-                    QString previousPath = historyBackRight[currentTab].pop();
-                    isNavTriggered = true;
-                    directoryChange(previousPath);
-                }
-            }
+            navigate("", "back");
             return true;
         } else if (mouseEvent->button() == Qt::ForwardButton) {
-            if (view->objectName() == "left") {
-                tabWidget = ui->leftPanel->findChild<QTabWidget*>();
-                QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
-                QString currentPath = pathEdit->text();
-                int currentTab = tabWidget->currentIndex();
-
-                if (!historyForwardLeft[currentTab].isEmpty()) {
-                    historyBackLeft[currentTab].push(currentPath);
-                    QString nextPath = historyForwardLeft[currentTab].pop();
-                    isNavTriggered = true;
-                    directoryChange(nextPath);
-                }
-
-            } else {
-                tabWidget = ui->rightPanel->findChild<QTabWidget*>();
-                QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
-                QString currentPath = pathEdit->text();
-                int currentTab = tabWidget->currentIndex();
-
-                if (!historyForwardRight[currentTab].isEmpty()) {
-                    historyBackRight[currentTab].push(currentPath);
-                    QString nextPath = historyForwardRight[currentTab].pop();
-                    isNavTriggered = true;
-                    directoryChange(nextPath);
-                }
-            }
+            navigate("", "forward");
             return true;
         }
     }

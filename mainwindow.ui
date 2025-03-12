@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>930</width>
-    <height>600</height>
+    <height>599</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,28 +18,23 @@
     <normaloff>:/icons/icons/crowleys_commander.ico</normaloff>:/icons/icons/crowleys_commander.ico</iconset>
   </property>
   <property name="styleSheet">
-   <string notr="true">* {color: #fff;}
+   <string notr="true">* { color: #fff; }
+
 QWidget#mainWidget, QWidget#mainBar,
 QWidget#leftPanel, QWidget#rightPanel,
 QTreeView {
 	background: #333;
-	color: #fff;
 	border: 1px solid #444;
 }
-QMenuBar {spacing: 0;}
-QMenuBar::item {
-	padding: 3px 10px;
-}
-QMenu::item {
-	padding: 5px 15px;
-}
+
+QMenuBar { spacing: 0; }
+QMenuBar::item { padding: 3px 10px; }
+QMenu::item { padding: 5px 15px; }
 QMenuBar::item:selected, QMenu::item:selected {
 	background: #222;
 	border: 1px solid #333;
 }
-QMenu:hover, QAction:hover {
-	background: #292929;
-}
+QMenu:hover, QAction:hover { background: #292929; }
 
 QPushButton {
 	border: 1px solid #333;
@@ -47,12 +42,8 @@ QPushButton {
 	padding: 5px 7px;
 	border-radius: 3px;
 }
-QPushButton:hover {
-	background: #292929;
-}
-QPushButton:pressed {
-	background: #222;
-}
+QPushButton:hover { background: #292929; }
+QPushButton:pressed {	background: #222; }
 
 QComboBox {
 	background: #222;
@@ -73,18 +64,14 @@ QComboBox::down-arrow {
 	image: url(:/icons/icons/arrow.png);
 }
 
-QWidget#leftPanel, QWidget#rightPanel {
-	border: 1px solid #444;
-}
+QWidget#leftPanel, QWidget#rightPanel { border: 1px solid #444; }
 
 QWidget#statusDiskLeft, QWidget#statusDiskRight {
 	border-top: 1px solid #444;
 	border-bottom: 1px solid #444;
 }
 
-QWidget#bottomButtons {
-	border-top: 1px solid #444;
-}
+QWidget#bottomButtons { 	border-top: 1px solid #444; }
 
 QWidget#mainWidget QLineEdit {
 	background: #ea4242;
@@ -97,11 +84,7 @@ QWidget#mainWidget QLineEdit:focus {
 	background: #fa5252;
 	color: #000;
 }
-
-QTabWidget::tab-bar	{
-	alignment: left;
-}
-
+QTabWidget::tab-bar	{ 	alignment: left; }
 QTabBar::tab {
 	background: #222;
 	padding: 6px 10px;
@@ -109,9 +92,7 @@ QTabBar::tab {
 	border-top-right-radius: 5px;
 	border: 1px solid #444;
 }
-QTabBar::tab:hover {
-	background: #292929;
-}
+QTabBar::tab:hover { background: #292929; }
 QTabBar::tab:selected {
 	background: #fa5252;
 	color: #000;
@@ -125,9 +106,7 @@ QTreeView::item {
 	border-bottom: 1px solid #444;
 	padding: 4px 0;
 }
-QTreeView::item:hover {
-	background: #393939;
-}
+QTreeView::item:hover { background: #393939; }
 QTreeView::item:selected {
 	color: #fa5252;
 	background: transparent;
@@ -140,10 +119,7 @@ QHeaderView::section {
 	margin-top: 5px;
 	margin-left: 5px;
 }
-QHeaderView::section:hover {
-	background: #292929;
-}
-
+QHeaderView::section:hover { background: #292929; }
 QHeaderView::down-arrow {
     image: url(:icons/icons/arrow.png);
 	width: 12px;
@@ -194,6 +170,15 @@ QHeaderView::up-arrow {
        </property>
        <item>
         <widget class="QWidget" name="leftPanel" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="contextMenuPolicy">
+          <enum>Qt::ContextMenuPolicy::DefaultContextMenu</enum>
+         </property>
          <layout class="QVBoxLayout" name="leftPanelLayout">
           <property name="spacing">
            <number>0</number>
@@ -212,9 +197,30 @@ QHeaderView::up-arrow {
           </property>
           <item>
            <widget class="QWidget" name="diskButtonsLeft" native="true">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>29</height>
+             </size>
+            </property>
+            <property name="layoutDirection">
+             <enum>Qt::LayoutDirection::LeftToRight</enum>
+            </property>
+            <property name="autoFillBackground">
+             <bool>false</bool>
+            </property>
             <layout class="QHBoxLayout" name="diskButtonsLeftLayout">
              <property name="spacing">
               <number>0</number>
+             </property>
+             <property name="sizeConstraint">
+              <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
              </property>
              <property name="leftMargin">
               <number>0</number>
@@ -233,6 +239,18 @@ QHeaderView::up-arrow {
           </item>
           <item>
            <widget class="QWidget" name="statusDiskLeft" native="true">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>30</height>
+             </size>
+            </property>
             <layout class="QHBoxLayout" name="statusDiskLeftLayout">
              <property name="spacing">
               <number>5</number>
@@ -264,14 +282,14 @@ QHeaderView::up-arrow {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::NoFocus</enum>
+                <enum>Qt::FocusPolicy::NoFocus</enum>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="diskNameLeft">
                <property name="text">
-                <string>TextLabel</string>
+                <string>diskNameLeft</string>
                </property>
               </widget>
              </item>
@@ -281,11 +299,112 @@ QHeaderView::up-arrow {
                 <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                </property>
               </widget>
              </item>
+             <item>
+              <layout class="QHBoxLayout" name="leftButtonsLayout">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="leftBackButton">
+                 <property name="maximumSize">
+                  <size>
+                   <width>36</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="focusPolicy">
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="my_res.qrc">
+                   <normaloff>:/icons/icons/left_arrow.png</normaloff>:/icons/icons/left_arrow.png</iconset>
+                 </property>
+                 <property name="iconSize">
+                  <size>
+                   <width>16</width>
+                   <height>16</height>
+                  </size>
+                 </property>
+                 <property name="flat">
+                  <bool>false</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="leftForwardButton">
+                 <property name="maximumSize">
+                  <size>
+                   <width>36</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="focusPolicy">
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="my_res.qrc">
+                   <normaloff>:/icons/icons/right_arrow.png</normaloff>:/icons/icons/right_arrow.png</iconset>
+                 </property>
+                 <property name="iconSize">
+                  <size>
+                   <width>16</width>
+                   <height>16</height>
+                  </size>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="leftUpButton">
+                 <property name="maximumSize">
+                  <size>
+                   <width>36</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="focusPolicy">
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="my_res.qrc">
+                   <normaloff>:/icons/icons/up.png</normaloff>:/icons/icons/up.png</iconset>
+                 </property>
+                 <property name="iconSize">
+                  <size>
+                   <width>16</width>
+                   <height>16</height>
+                  </size>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
             </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTabWidget" name="leftBar">
+            <property name="tabPosition">
+             <enum>QTabWidget::TabPosition::North</enum>
+            </property>
+            <property name="tabsClosable">
+             <bool>false</bool>
+            </property>
+            <property name="movable">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
          </layout>
@@ -311,6 +430,12 @@ QHeaderView::up-arrow {
           </property>
           <item>
            <widget class="QWidget" name="diskButtonsRight" native="true">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>29</height>
+             </size>
+            </property>
             <layout class="QHBoxLayout" name="diskButtonsRightLayout">
              <property name="spacing">
               <number>0</number>
@@ -335,7 +460,7 @@ QHeaderView::up-arrow {
             <property name="maximumSize">
              <size>
               <width>16777215</width>
-              <height>16777215</height>
+              <height>30</height>
              </size>
             </property>
             <layout class="QHBoxLayout" name="statusDiskRightLayout">
@@ -369,28 +494,123 @@ QHeaderView::up-arrow {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::ClickFocus</enum>
+                <enum>Qt::FocusPolicy::ClickFocus</enum>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="diskNameRight">
                <property name="text">
-                <string>TextLabel</string>
+                <string>diskNameRight</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="diskSizeRight">
                <property name="text">
-                <string>diskSizeLeft</string>
+                <string>diskSizeRight</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                </property>
               </widget>
              </item>
+             <item>
+              <layout class="QHBoxLayout" name="rightButtonsLayout">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="rightBackButton">
+                 <property name="maximumSize">
+                  <size>
+                   <width>36</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="focusPolicy">
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="my_res.qrc">
+                   <normaloff>:/icons/icons/left_arrow.png</normaloff>:/icons/icons/left_arrow.png</iconset>
+                 </property>
+                 <property name="iconSize">
+                  <size>
+                   <width>16</width>
+                   <height>16</height>
+                  </size>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="rightForwardButton">
+                 <property name="maximumSize">
+                  <size>
+                   <width>36</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="focusPolicy">
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="my_res.qrc">
+                   <normaloff>:/icons/icons/right_arrow.png</normaloff>:/icons/icons/right_arrow.png</iconset>
+                 </property>
+                 <property name="iconSize">
+                  <size>
+                   <width>16</width>
+                   <height>16</height>
+                  </size>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="rightUpButton">
+                 <property name="maximumSize">
+                  <size>
+                   <width>36</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="focusPolicy">
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
+                 </property>
+                 <property name="contextMenuPolicy">
+                  <enum>Qt::ContextMenuPolicy::DefaultContextMenu</enum>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="my_res.qrc">
+                   <normaloff>:/icons/icons/up.png</normaloff>:/icons/icons/up.png</iconset>
+                 </property>
+                 <property name="iconSize">
+                  <size>
+                   <width>16</width>
+                   <height>16</height>
+                  </size>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
             </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTabWidget" name="rightBar">
+            <property name="movable">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
          </layout>
@@ -404,7 +624,7 @@ QHeaderView::up-arrow {
       <property name="maximumSize">
        <size>
         <width>16777215</width>
-        <height>40</height>
+        <height>32</height>
        </size>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -412,7 +632,7 @@ QHeaderView::up-arrow {
         <number>0</number>
        </property>
        <property name="sizeConstraint">
-        <enum>QLayout::SetDefaultConstraint</enum>
+        <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
        </property>
        <property name="leftMargin">
         <number>0</number>
@@ -429,7 +649,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="editBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F4 Edit</string>
@@ -439,7 +659,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="copyBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F5 Copy</string>
@@ -449,7 +669,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="moveBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F6 Move</string>
@@ -459,7 +679,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="folderBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F7 New Folder</string>
@@ -469,7 +689,7 @@ QHeaderView::up-arrow {
        <item>
         <widget class="QPushButton" name="deleteBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F8 Delete</string>
@@ -487,7 +707,7 @@ QHeaderView::up-arrow {
      <x>0</x>
      <y>0</y>
      <width>930</width>
-     <height>24</height>
+     <height>26</height>
     </rect>
    </property>
    <property name="acceptDrops">
@@ -511,6 +731,7 @@ QHeaderView::up-arrow {
     <addaction name="separator"/>
     <addaction name="actionCut"/>
     <addaction name="actionCopy"/>
+    <addaction name="actionCopy_as_path"/>
     <addaction name="actionPaste"/>
    </widget>
    <widget class="QMenu" name="menuSelection">
@@ -566,10 +787,10 @@ QHeaderView::up-arrow {
     <string>Return</string>
    </property>
    <property name="shortcutContext">
-    <enum>Qt::WidgetShortcut</enum>
+    <enum>Qt::ShortcutContext::WidgetShortcut</enum>
    </property>
    <property name="priority">
-    <enum>QAction::LowPriority</enum>
+    <enum>QAction::Priority::LowPriority</enum>
    </property>
   </action>
   <action name="actionOpen_with">
@@ -741,6 +962,14 @@ QHeaderView::up-arrow {
    </property>
    <property name="shortcut">
     <string>Ctrl+H</string>
+   </property>
+  </action>
+  <action name="actionCopy_as_path">
+   <property name="text">
+    <string>Copy as path</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+C</string>
    </property>
   </action>
  </widget>
