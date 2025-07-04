@@ -707,7 +707,7 @@ QHeaderView::up-arrow {
      <x>0</x>
      <y>0</y>
      <width>930</width>
-     <height>26</height>
+     <height>22</height>
     </rect>
    </property>
    <property name="acceptDrops">
@@ -762,6 +762,7 @@ QHeaderView::up-arrow {
     </property>
     <addaction name="actionFile_search"/>
     <addaction name="actionShow_Hide_hidden_files"/>
+    <addaction name="actionSettings"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSelection"/>
@@ -970,6 +971,14 @@ QHeaderView::up-arrow {
    </property>
    <property name="shortcut">
     <string>Ctrl+Shift+C</string>
+   </property>
+  </action>
+  <action name="actionSettings">
+   <property name="text">
+    <string>Settings</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+P</string>
    </property>
   </action>
  </widget>

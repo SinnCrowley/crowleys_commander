@@ -2,10 +2,10 @@
 #include "mysortfilterproxymodel.h"
 #include "myfilesystemmodel.h"
 
-MySortFilterProxyModel::MySortFilterProxyModel(QString path, QWidget *parent)
+MySortFilterProxyModel::MySortFilterProxyModel(QString path, const QString position, QWidget *parent)
 {
     Q_UNUSED(parent);
-    fsModel = new MyFileSystemModel(path, this);
+    fsModel = new MyFileSystemModel(path, position, this);
 
     setRecursiveFilteringEnabled(true);
     setFilterCaseSensitivity(Qt::CaseInsensitive);

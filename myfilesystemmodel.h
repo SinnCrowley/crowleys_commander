@@ -12,7 +12,7 @@ class MyFileSystemModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    MyFileSystemModel(const QString path, QObject *parent = nullptr);
+    MyFileSystemModel(const QString path, const QString position, QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -30,8 +30,10 @@ public:
     QModelIndex index(const QString &path, int column = 0) const;
 
     bool copyFiles(QStringList source, QString targetPath);
-    bool copyDirectory(const QString &sourceDirPath, const QString &targetDirPath, QProgressDialog &progress, qint64 &copiedSize);
+    bool copyDirectory(const QString &sourceDirPath, const QString &targetDirPath, QProgressDialog &progress, qint64 &copiedSize, qint64 totalSize);
     qint64 calculateDirectorySize(const QFileInfo &file);
+    bool removeDirectory(const QString &dirPath, QProgressDialog *progressDialog, int &count, int total);
+    int countEntriesInDirectory(const QString &dirPath);
 
     // Drag and Drop
     Qt::DropActions supportedDropActions() const override;
@@ -46,6 +48,13 @@ public:
 
 signals:
     void numberPopulated(const QString &path, int start, int number, int total);
+
+    // signal after external deleting current directory
+    void rootPathChanged(const QString &newPath, const QString &position);
+
+    // signals for focus reseting after model reset
+    void beforeReset();
+    void afterReset();
 
 public slots:
     void setRootPath(const QString &path);
@@ -65,6 +74,7 @@ private:
     int batchSize = 1000;
     QFlags<QDir::Filter> filters;
     QFileSystemWatcher *fileSystemWatcher;
+    QString m_position;
 };
 
 #endif // MYFILESYSTEMMODEL_H

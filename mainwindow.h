@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QMouseEvent>
+#include <QProgressDialog>
 #include "devicewatcher.h"
 
 QT_BEGIN_NAMESPACE
@@ -33,10 +34,11 @@ private:
     bool isValidFileName(QString filename);
     QStringList getFileList();
     void createView(QTabWidget *tabBar, QString path);
-    void directoryChange(QString path);
+    void directoryChange(QString path, const QString &position);
     void tabsUpdate(QTabWidget *tabWidget);
     void diskStatusUpdate(QTabWidget *tabWidget);
     void clearLayout(QLayout *layout);
+    QString makeUniqueCopyName(const QString &dirPath, const QString &originalName);
     void deviceUpdate();
     void addToHistory(QString path, int currentTab, QString panel);
     void initialize();
@@ -66,6 +68,7 @@ private slots:
     void on_actionCopy_triggered();
     void on_actionPaste_triggered();
     void on_actionCopy_as_path_triggered();
+    void properties_triggered();
 
     // Selection menu actions
     void on_actionSelect_file_triggered();
@@ -85,6 +88,7 @@ private slots:
     void on_actionFile_search_triggered();
     void on_actionShow_Hide_hidden_files_triggered();
     void open_Terminal_triggered();
+    void on_actionSettings_triggered();
 
     // Bottom button actions
     void on_editBtn_clicked();
@@ -96,6 +100,9 @@ private slots:
     // navigation buttons actions
     void navigate(QString position, const QString direction);
     void navigationButton_clicked();
+
+    // update UI after external folder deletion
+    void onRootPathChanged(const QString &newPath, const QString &position);
 
 private:
     Ui::MainWindow *ui;

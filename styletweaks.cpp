@@ -9,13 +9,20 @@ void StyleTweaks::drawPrimitive(PrimitiveElement element, const QStyleOption *op
 {
     if (element == QStyle::PE_FrameFocusRect) {
 
-        qreal x = option->rect.x()+1;
-        qreal y = option->rect.y()+1;
-        qreal w = option->rect.width()-1;
-        qreal h = option->rect.height()-2;
+        if (widget) {
+            // don't draw focus rectangle for settings tabs
+            if (widget->objectName() == "menuTabs")
+                return;
+        } else {
+            qreal x = option->rect.x() + 1;
+            qreal y = option->rect.y() + 1;
+            qreal w = option->rect.width() - 1;
+            qreal h = option->rect.height() - 2;
 
-        painter->setPen(QColor(250, 82, 82));
-        painter->drawRect(x, y, w, h);
+            painter->setPen(QColor(250, 82, 82));
+            painter->drawRect(QRectF(x, y, w, h));
+            return;
+        }
 
         return;
     }

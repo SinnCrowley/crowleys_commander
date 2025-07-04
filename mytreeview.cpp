@@ -5,12 +5,14 @@
 #include <QItemSelectionModel>
 #include <QDrag>
 #include <QHeaderView>
+#include <QTimer>
+#include <QPointer>
 
-MyTreeView::MyTreeView(const QString path, QWidget *parent)
+MyTreeView::MyTreeView(const QString path, const QString position, QWidget *parent)
 {
     Q_UNUSED(parent);
 
-    sortModel = new MySortFilterProxyModel(path, this);
+    sortModel = new MySortFilterProxyModel(path, position, this);
     setModel(sortModel);
     setRootIndex(sortModel->mapFromSource(sortModel->fsModel->index(path)));
     setUniformRowHeights(true);
@@ -42,6 +44,8 @@ MyTreeView::MyTreeView(const QString path, QWidget *parent)
     setColumnWidth(3, 110);
     header()->setSectionResizeMode(0, QHeaderView::Stretch);
     header()->setStretchLastSection(false);
+
+    connectModelSignals();
 }
 
 // Disable rename of TreeView element on double click
@@ -94,6 +98,9 @@ void MyTreeView::keyPressEvent(QKeyEvent *event)
         case Qt::Key_End:
         case Qt::Key_Home:
             moveCursorWithoutSelection(event->key());
+            break;
+        case Qt::Key_Right:
+        case Qt::Key_Left:
             break;
         default:
             QTreeView::keyPressEvent(event);
@@ -224,4 +231,74 @@ void MyTreeView::moveCursorWithoutSelection(int key)
 
     if (nextIndex.isValid())
         this->selectionModel()->setCurrentIndex(nextIndex.siblingAtColumn(currentIndex.column()), QItemSelectionModel::NoUpdate);
+}
+
+void MyTreeView::forceFocusAfterLayout()
+{
+    QPointer<MyTreeView> self(this);
+
+    QTimer::singleShot(0, this, [self]() {
+        if (!self || !self->model())
+            return;
+
+        if (!self->hasFocusNow)
+            return;
+
+        int rowCount = self->model()->rowCount();
+        if (rowCount == 0)
+            return;
+
+        int targetRow = (self->savedRow >= 0 && self->savedRow < rowCount) ? self->savedRow : 0;
+        QModelIndex target = self->model()->index(targetRow, 0);
+
+        if (target.isValid()) {
+            self->selectionModel()->setCurrentIndex(target, QItemSelectionModel::NoUpdate);
+        }
+
+        self->savedRow = -1;  // clear saved row
+    });
+}
+
+void MyTreeView::connectModelSignals()
+{
+    if (sortModel && sortModel->fsModel) {
+        connect(sortModel->fsModel, &MyFileSystemModel::beforeReset, this, [this]() {
+            QModelIndex idx = this->currentIndex();
+            savedRow = idx.row();
+        });
+
+        connect(sortModel->fsModel, &MyFileSystemModel::afterReset, this, [this]() {
+            int rowCount = sortModel->rowCount();
+            if (rowCount == 0) return;
+
+            int finalRow = (savedRow >= 0 && savedRow < rowCount) ? savedRow : 0;
+
+            QModelIndex newIndex = this->model()->index(finalRow, 0);
+
+            if (newIndex.isValid()) {
+                this->selectionModel()->setCurrentIndex(newIndex, QItemSelectionModel::NoUpdate);
+            }
+
+            savedRow = -1;  // clear saved row
+        });
+    }
+}
+
+void MyTreeView::closeEditor(QWidget *editor, QAbstractItemDelegate::EndEditHint hint)
+{
+    QTreeView::closeEditor(editor, hint);
+
+    QTimer::singleShot(0, this, [this]() {
+        this->setFocus(Qt::OtherFocusReason);
+    });
+}
+
+void MyTreeView::focusInEvent(QFocusEvent *event) {
+    hasFocusNow = true;
+    QTreeView::focusInEvent(event);
+}
+
+void MyTreeView::focusOutEvent(QFocusEvent *event) {
+    hasFocusNow = false;
+    QTreeView::focusOutEvent(event);
 }

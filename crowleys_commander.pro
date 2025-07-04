@@ -14,6 +14,7 @@ SOURCES += \
     mainwindow.cpp \
     myfilesystemmodel.cpp \
     mysearchdialog.cpp \
+    mysettingsdialog.cpp \
     mysortfilterproxymodel.cpp \
     mytreeview.cpp \
     styletweaks.cpp
@@ -23,13 +24,15 @@ HEADERS += \
     mainwindow.h \
     myfilesystemmodel.h \
     mysearchdialog.h \
+    mysettingsdialog.h \
     mysortfilterproxymodel.h \
     mytreeview.h \
     styletweaks.h
 
 FORMS += \
     mainwindow.ui \
-    mysearchdialog.ui
+    mysearchdialog.ui \
+    mysettingsdialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

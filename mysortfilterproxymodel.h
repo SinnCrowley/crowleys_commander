@@ -7,7 +7,7 @@
 class MySortFilterProxyModel : public QSortFilterProxyModel {
     Q_OBJECT
 public:
-    MySortFilterProxyModel(const QString path, QWidget *parent);
+    MySortFilterProxyModel(const QString path, const QString position, QWidget *parent);
     bool lessThan(const QModelIndex &left, const QModelIndex &right) const;
     MyFileSystemModel *fsModel;
 };

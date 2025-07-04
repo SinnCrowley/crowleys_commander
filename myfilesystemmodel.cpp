@@ -9,11 +9,13 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileIconProvider>
+#include <QTimer>
+#include <QQueue>
 
-MyFileSystemModel::MyFileSystemModel(const QString path, QObject *parent)
+MyFileSystemModel::MyFileSystemModel(const QString path, const QString position, QObject *parent)
 {
     Q_UNUSED(parent);
-
+    m_position = position;
     fileSystemWatcher = new QFileSystemWatcher(this);
     connect(fileSystemWatcher, &QFileSystemWatcher::fileChanged, this, &MyFileSystemModel::onFileChanged);
     connect(fileSystemWatcher, &QFileSystemWatcher::directoryChanged, this, &MyFileSystemModel::onDirectoryChanged);
@@ -22,6 +24,17 @@ MyFileSystemModel::MyFileSystemModel(const QString path, QObject *parent)
     setRootPath(path);
 }
 
+
+QString formatBytes(qint64 bytes) {
+    QStringList units = {"B", "KB", "MB", "GB", "TB"};
+    double size = bytes;
+    int i = 0;
+    while (size >= 1024 && i < units.size() - 1) {
+        size /= 1024;
+        ++i;
+    }
+    return QString::number(size, 'f', 2) + " " + units[i];
+}
 
 void MyFileSystemModel::setRootPath(const QString &path)
 {
@@ -35,8 +48,10 @@ void MyFileSystemModel::setRootPath(const QString &path)
 
     if (!fileSystemWatcher->directories().isEmpty())
         fileSystemWatcher->removePaths(fileSystemWatcher->directories());
-    if (!path.isEmpty())
-        fileSystemWatcher->addPath(path);
+
+    do {
+        fileSystemWatcher->addPath(dir.absolutePath());
+    } while (dir.cdUp());
 
     while (canFetchMore(QModelIndex()))
         fetchMore(QModelIndex());
@@ -260,27 +275,190 @@ bool MyFileSystemModel::setData(const QModelIndex &index, const QVariant &value,
 qint64 MyFileSystemModel::calculateDirectorySize(const QFileInfo &file)
 {
     qint64 totalSize = 0;
-    QDir dir(file.absoluteFilePath());
-    QFileInfoList fileList = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::AllDirs);
+    QQueue<QString> directories;
+    directories.enqueue(file.absoluteFilePath());
 
-    foreach (const QFileInfo &fileInfo, fileList) {
-        if (fileInfo.isDir())
-            totalSize += calculateDirectorySize(fileInfo);
-        else
-            totalSize += fileInfo.size();
+    while (!directories.isEmpty()) {
+        QString currentDirPath = directories.dequeue();
+        QDir dir(currentDirPath);
+
+        QFileInfoList entries = dir.entryInfoList(
+            QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System
+            );
+
+        for (const QFileInfo &entry : entries) {
+            if (entry.isSymLink()) continue;
+
+            if (entry.isDir()) {
+                directories.enqueue(entry.absoluteFilePath());
+            } else {
+                totalSize += entry.size();
+            }
+        }
     }
 
     return totalSize;
 }
 
-bool MyFileSystemModel::copyFiles(QStringList source, QString targetPath)
+
+bool MyFileSystemModel::copyFiles(QStringList source, QString targetPath) {
+    if (targetPath.at(targetPath.length() - 1) != '/')
+        targetPath.append('/');
+
+    QProgressDialog *progressDialog = new QProgressDialog("Copying files...", "Cancel", 0, source.size(), nullptr);
+    progressDialog->setWindowModality(Qt::WindowModal);
+    progressDialog->setWindowTitle("Copy Progress");
+    progressDialog->setMinimumDuration(50);
+
+
+    // create destination folder if not exists
+    QDir destinationDir(targetPath);
+    if (!destinationDir.exists()) {
+        if (!destinationDir.mkdir(targetPath)) {
+            QMessageBox::warning(nullptr, "Error", "Failed to create the destination folder.");
+            return false;
+        }
+    }
+
+    // disable copying to the same path
+    if (targetPath == (source[0].left(source[0].lastIndexOf(QChar('/'))) + '/')) {
+        QMessageBox::warning(nullptr, "Error", "Cannot copy file into the same folder.");
+        return false;
+    }
+
+    qint64 totalSize = 0;
+    qint64 copiedSize = 0;
+
+    bool overwriteAll = false;
+    bool skipAll = false;
+
+    foreach (const QString &file, source) {
+        QFileInfo fileInfo(file);
+        if(fileInfo.isDir())
+            totalSize += calculateDirectorySize(fileInfo);
+        else
+            totalSize += fileInfo.size();
+    }
+
+    progressDialog->setLabelText(
+        QString("Copied %1 of %2")
+            .arg(formatBytes(copiedSize))
+            .arg(formatBytes(totalSize))
+        );
+
+    progressDialog->show();
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+
+    progressDialog->setMaximum(100);
+    progressDialog->setValue(0);
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+
+    foreach (const QString &file, source) {
+        if (progressDialog->wasCanceled()) {
+            return false;
+        }
+
+        QFileInfo fileInfo(file);
+
+        // check if source directory is not destination parent
+        if (targetPath.contains(file) && !targetPath.contains(file + " - Copy") && fileInfo.isDir()) {
+            QMessageBox::warning(nullptr, "Error", "The source directory is the parent of the target directory!");
+            return false;
+        }
+
+        // ask if file exists
+        if (QFileInfo::exists(targetPath + fileInfo.fileName())) {
+            if (!overwriteAll && !skipAll) {
+                QMessageBox msgBox;
+                msgBox.setWindowTitle("File exists");
+                msgBox.setText("File \"" + targetPath + fileInfo.fileName() + "\" already exists! Do you want to overwrite it?");
+                QPushButton *overwriteButton = msgBox.addButton("Overwrite", QMessageBox::YesRole);
+                QPushButton *overwriteAllButton = msgBox.addButton("Overwrite All", QMessageBox::YesRole);
+                QPushButton *skipButton = msgBox.addButton("Skip", QMessageBox::NoRole);
+                QPushButton *skipAllButton = msgBox.addButton("Skip All", QMessageBox::NoRole);
+                msgBox.exec();
+
+                if (msgBox.clickedButton() == (QAbstractButton*)overwriteButton) {
+                    QFile::remove(targetPath + fileInfo.fileName());
+                } else if (msgBox.clickedButton() == (QAbstractButton*)overwriteAllButton) {
+                    overwriteAll = true;
+                    QFile::remove(targetPath + fileInfo.fileName());
+                } else if (msgBox.clickedButton() == (QAbstractButton*)skipButton) {
+                    continue;
+                } else if (msgBox.clickedButton() == (QAbstractButton*)skipAllButton) {
+                    skipAll = true;
+                    continue;
+                }
+            } else if (overwriteAll) {
+                QFile::remove(targetPath + fileInfo.fileName());
+            } else if (skipAll) {
+                continue;
+            }
+        }
+
+        // Copying files
+        if (fileInfo.isFile() || fileInfo.isSymLink()) {
+            QFile sourceFile(file);
+            QString newName = targetPath + fileInfo.fileName();
+
+            QFile out(newName);
+
+            if (!sourceFile.open(QIODevice::ReadOnly))
+                return false;
+            if (!out.open(QIODevice::WriteOnly))
+                return false;
+
+            const qint64 bufferSize = 4 * 1024 * 1024; // 4 MB buffer
+            QByteArray buffer;
+            buffer.reserve(bufferSize);
+
+            QElapsedTimer updateTimer;
+            updateTimer.start();
+
+            while (!sourceFile.atEnd()) {
+                buffer = sourceFile.read(bufferSize);
+                if (buffer.isEmpty())
+                    break;
+
+                qint64 written = out.write(buffer);
+                if (written < 0)
+                    return false;
+
+                copiedSize += written;
+
+                // update buffer every 100 ms
+                if (progressDialog && updateTimer.elapsed() > 100) {
+                    progressDialog->setValue((copiedSize * 100) / totalSize);
+                    progressDialog->setLabelText(
+                        QString("Copied %1 of %2")
+                            .arg(formatBytes(copiedSize))
+                            .arg(formatBytes(totalSize))
+                        );
+                    QCoreApplication::processEvents();
+                    updateTimer.restart();
+                }
+            }
+
+            sourceFile.close();
+            out.close();
+
+        } else if (fileInfo.isDir()) {
+            copyDirectory(file, targetPath + fileInfo.fileName(), *progressDialog, copiedSize, totalSize);
+        }
+    }
+
+    progressDialog->setValue(100);
+    progressDialog->close();
+
+    return true;
+}
+/*bool MyFileSystemModel::copyFiles(QStringList source, QString targetPath)
 {
     if (targetPath.at(targetPath.length() - 1) != '/')
         targetPath.append('/');
 
     QProgressDialog *progressDialog = new QProgressDialog("Copying files...", "Cancel", 0, source.size(), nullptr);
     progressDialog->setWindowModality(Qt::WindowModal);
-    progressDialog->setMinimum(0);
     progressDialog->setWindowTitle("Copy Progress");
     progressDialog->setMinimumDuration(50);
 
@@ -291,6 +469,12 @@ bool MyFileSystemModel::copyFiles(QStringList source, QString targetPath)
             QMessageBox::warning(nullptr, "Error", "Failed to create the destination folder.");
             return false;
         }
+    }
+
+    // disable copying to the same path
+    if (targetPath == (source[0].left(source[0].lastIndexOf(QChar('/'))) + '/')) {
+        QMessageBox::warning(nullptr, "Error", "Cannot copy file into the same folder.");
+        return false;
     }
 
     qint64 totalSize = 0;
@@ -308,18 +492,19 @@ bool MyFileSystemModel::copyFiles(QStringList source, QString targetPath)
     }
 
     progressDialog->setMaximum(totalSize);
-    progressDialog->open();
+    progressDialog->setValue(0);
+    progressDialog->show();
+    QCoreApplication::processEvents();
 
     foreach (const QString &file, source) {
         if (progressDialog->wasCanceled()) {
-            QMessageBox::warning(nullptr, "Operation Cancelled", "File copying operation was cancelled.");
             return false;
         }
 
         QFileInfo fileInfo(file);
 
         // check if source directory is not destination parent
-        if (targetPath.contains(file) && fileInfo.isDir()) {
+        if (targetPath.contains(file) && !targetPath.contains(file + " - Copy") && fileInfo.isDir()) {
             QMessageBox::warning(nullptr, "Error", "The source directory is the parent of the target directory!");
             return false;
         }
@@ -359,6 +544,8 @@ bool MyFileSystemModel::copyFiles(QStringList source, QString targetPath)
             QFile::copy(file, targetPath + fileInfo.fileName());
             copiedSize += fileInfo.size();
             progressDialog->setValue(copiedSize);
+            QCoreApplication::processEvents();
+
         } else if (fileInfo.isDir()) {
             copyDirectory(file, targetPath + fileInfo.fileName(), *progressDialog, copiedSize);
         }
@@ -368,10 +555,10 @@ bool MyFileSystemModel::copyFiles(QStringList source, QString targetPath)
     progressDialog->close();
 
     return true;
-}
+}*/
 
 bool MyFileSystemModel::copyDirectory(const QString &sourceDirPath, const QString &targetDirPath, QProgressDialog &progress,
-                                      qint64 &copiedSize)
+                                      qint64 &copiedSize, qint64 totalSize)
 {
     QDir sourceDir(sourceDirPath);
     QDir targetDir(targetDirPath);
@@ -388,15 +575,112 @@ bool MyFileSystemModel::copyDirectory(const QString &sourceDirPath, const QStrin
     foreach (const QFileInfo &fileInfo, fileList) {
         QString targetFilePath = targetDirPath + "/" + fileInfo.fileName();
         if (fileInfo.isDir()) {
-            copyDirectory(fileInfo.filePath(), targetFilePath, progress, copiedSize);
+            copyDirectory(fileInfo.filePath(), targetFilePath, progress, copiedSize, totalSize);
         } else {
-            QFile::copy(fileInfo.filePath(), targetFilePath);
+            /*QFile::copy(fileInfo.filePath(), targetFilePath);
             copiedSize += fileInfo.size();
-            progress.setValue(copiedSize);
+            progress.setValue(copiedSize); */
+
+            QFile sourceFile(fileInfo.filePath());
+            QString newName = targetFilePath;
+
+            QFile out(newName);
+
+            if (!sourceFile.open(QIODevice::ReadOnly))
+                return false;
+            if (!out.open(QIODevice::WriteOnly))
+                return false;
+
+            const qint64 bufferSize = 4 * 1024 * 1024; // 4 MB buffer
+            QByteArray buffer;
+            buffer.reserve(bufferSize);
+
+            QElapsedTimer updateTimer;
+            updateTimer.start();
+
+            while (!sourceFile.atEnd()) {
+                buffer = sourceFile.read(bufferSize);
+                if (buffer.isEmpty())
+                    break;
+
+                qint64 written = out.write(buffer);
+                if (written < 0)
+                    return false;
+
+                copiedSize += written;
+
+                // update progress every 100 ms
+                if (updateTimer.elapsed() > 100) {
+                    progress.setValue((copiedSize * 100) / totalSize);
+                    progress.setLabelText(
+                        QString("Copied %1 of %2")
+                            .arg(formatBytes(copiedSize))
+                            .arg(formatBytes(totalSize))
+                        );
+                    QCoreApplication::processEvents();
+                    updateTimer.restart();
+                }
+            }
+
+            sourceFile.close();
+            out.close();
         }
     }
 
     return true;
+}
+
+// remove directory recursively with progress bar update
+bool MyFileSystemModel::removeDirectory(const QString &dirPath, QProgressDialog *progressDialog, int &count, int total)
+{
+    QDir dir(dirPath);
+    QFileInfoList entries = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System);
+
+    for (const QFileInfo &entry : entries) {
+        if (progressDialog->wasCanceled())
+            return false;
+
+        if (entry.isDir()) {
+            if (!removeDirectory(entry.absoluteFilePath(), progressDialog, count, total))
+                return false;
+        } else {
+            QFile::remove(entry.absoluteFilePath());
+            count++;
+            progressDialog->setValue(count);
+            progressDialog->setLabelText(
+                QString("Removed %1 of %2")
+                    .arg(count)
+                    .arg(total)
+                );
+            QCoreApplication::processEvents();
+        }
+    }
+
+    dir.rmdir(dirPath);
+    count++;
+    progressDialog->setValue(count);
+    QCoreApplication::processEvents();
+
+    return true;
+}
+
+// get directory files count recursively
+int MyFileSystemModel::countEntriesInDirectory(const QString &dirPath)
+{
+    int total = 1; // the folder
+
+    QDir dir(dirPath);
+    QFileInfoList entries = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System);
+
+    for (const QFileInfo &entry : entries) {
+        if (entry.isDir()) {
+            total += countEntriesInDirectory(entry.absoluteFilePath());
+        } else {
+            total++; // file
+        }
+    }
+
+    return total;
 }
 
 
@@ -530,11 +814,17 @@ QDir::Filters MyFileSystemModel::filter()
 void MyFileSystemModel::onDirectoryChanged(const QString &path)
 {
     QDir dir(path);
-
+    emit beforeReset();
     beginResetModel();
     fileList = dir.entryInfoList(filters);
-    fileCount = 0;
+    fileCount = fileList.count();;
     endResetModel();
+    emit afterReset();
+
+    if (!QDir(m_path).exists() && dir.exists()) {
+        m_path = path;
+        emit rootPathChanged(path, m_position);
+    }
 }
 
 void MyFileSystemModel::onFileChanged(const QString &path)
