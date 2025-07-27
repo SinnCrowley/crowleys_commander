@@ -438,22 +438,29 @@ void MainWindow::deviceUpdate()
     QIcon networkIcon(QPixmap(":/icons/icons/network_96.png"));
 
     foreach (const QStorageInfo &storage, QStorageInfo::mountedVolumes()) {
-        if (storage.isValid() && storage.isReady() && storage.name() != "") {
+        if (storage.isValid() && storage.isReady() && (storage.name() != "" || storage.device().contains("/dev/mapper"))) {
+
             QString fsType;
             if (storage.fileSystemType() == "fuseblk" || storage.fileSystemType() == "ntfs-3g")
                 fsType = "ntfs";
-            if (storage.fileSystemType() == "iso9660")
+            else if (storage.fileSystemType() == "iso9660")
                 fsType = "fat";
+            else
+                fsType= storage.fileSystemType();
 
             QString diskText;
 
             if (storage.rootPath() == "/") {
                 diskText = "/";
             } else {
-                if(storage.device().contains("/dev"))
-                    diskText = storage.device().mid(5, storage.device().length()-1);
-                else
+                if (storage.device().contains("/dev")) {
+                    if (storage.device().contains("/dev/mapper"))
+                        diskText = storage.device().mid(12, storage.device().length()-1);
+                    else
+                        diskText = storage.device().mid(5, storage.device().length()-1);
+                } else {
                     diskText = storage.rootPath().at(0);
+                }
             }
 
             QPushButton *leftButton = new QPushButton(this);

@@ -1,6 +1,8 @@
 #include "myfilesystemmodel.h"
 
 #include <QDir>
+#include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QUrl>
