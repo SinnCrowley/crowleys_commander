@@ -1,12 +1,10 @@
 /*  BUG FIXES:
  *
- *  !!!!! fix working with logical drives
+ *  !!!!! fix drive list getting - to test on dad's pc
  *
  *  NEW FEATURES:
  *
- *  open with on linux + macOS
- *
- *  network drives on macOS (?)
+ *  List of all partitions (even not mounted) - ??
  *
  *  add pack/unpack, settings, group rename, copy/delete/move in background
  *
@@ -17,6 +15,8 @@
  *  add full UI customization in settings (colors, fonts, sizes, keyboard shortcuts)
  *
  *  add FTP and SSH connections
+ *
+ *  network drives on macOS (?)
  *
  *  sync user profiles via cloud
 */
@@ -57,6 +57,7 @@
 #include "ui_mainwindow.h"
 #include "mysearchdialog.h"
 #include "mysettingsdialog.h"
+#include "myopenwithdialog.h"
 
 #include "myfilesystemmodel.h"
 #include "mytreeview.h"
@@ -438,30 +439,81 @@ void MainWindow::deviceUpdate()
     QIcon networkIcon(QPixmap(":/icons/icons/network_96.png"));
 
     foreach (const QStorageInfo &storage, QStorageInfo::mountedVolumes()) {
-        if (storage.isValid() && storage.isReady() && (storage.name() != "" || storage.device().contains("/dev/mapper"))) {
+        if (!storage.isValid() || !storage.isReady())
+            continue;
 
-            QString fsType;
-            if (storage.fileSystemType() == "fuseblk" || storage.fileSystemType() == "ntfs-3g")
-                fsType = "ntfs";
-            else if (storage.fileSystemType() == "iso9660")
-                fsType = "fat";
-            else
-                fsType= storage.fileSystemType();
+        QString rootPath = storage.rootPath();
+        QString devicePath = storage.device();
+        QString fsType = storage.fileSystemType();
 
-            QString diskText;
+        // Exclude system partitions or temporary filesystems
+        if (rootPath.startsWith("/proc") ||
+            rootPath.startsWith("/sys") ||
+            rootPath.startsWith("/dev/shm") ||
+            rootPath.startsWith("/var/run") ||
+            rootPath.startsWith("/snap/") ||
+            rootPath.startsWith("/boot") ||
+            rootPath == "/lost+found") {
+            continue;
+        }
 
-            if (storage.rootPath() == "/") {
-                diskText = "/";
-            } else {
-                if (storage.device().contains("/dev")) {
-                    if (storage.device().contains("/dev/mapper"))
-                        diskText = storage.device().mid(12, storage.device().length()-1);
-                    else
-                        diskText = storage.device().mid(5, storage.device().length()-1);
+        // Exclude virtual or temporary filesystems
+        if (fsType == "tmpfs" ||
+            fsType == "sysfs" ||
+            fsType == "proc" ||
+            fsType == "devtmpfs" ||
+            fsType == "devpts" ||
+            fsType == "cgroup" ||
+            fsType == "cgroup2" ||
+            fsType == "pstore" ||
+            fsType == "bpf" ||
+            fsType == "tracefs" ||
+            fsType == "debugfs" ||
+            fsType == "mqueue" ||
+            fsType == "hugetlbfs" ||
+            fsType == "autofs" ||
+            fsType == "rpc_pipefs" ||
+            fsType == "overlay") {
+            continue;
+        }
+
+        if (storage.fileSystemType() == "fuseblk" || storage.fileSystemType() == "ntfs-3g")
+            fsType = "ntfs";
+        else if (storage.fileSystemType() == "iso9660")
+            fsType = "fat";
+        else
+            fsType = storage.fileSystemType();
+
+        QString diskText;
+
+#ifdef Q_OS_WIN
+        // Show just disk letter on Windows
+        diskText = rootPath[0];
+
+#elif defined(Q_OS_MACOS)
+        // Show last part of device path on macOS
+        StringList pathParts = rootPath.split('/', Qt::SkipEmptyParts);
+        diskText = pathParts.isEmpty() ? "/" : pathParts.last();
+
+#else // Linux
+        if (rootPath == "/") {
+            diskText = "/";
+        } else {
+            if (devicePath.contains("/dev")) {
+                if (devicePath.contains("/dev/mapper/")) {
+                    // For logical drives show full name after /dev/mapper/
+                    diskText = devicePath.mid(12);
                 } else {
-                    diskText = storage.rootPath().at(0);
+                    // For common drives show device without /dev/
+                    diskText = devicePath.mid(5);
                 }
+            } else {
+                // Fallback - show mount point
+                QStringList pathParts = rootPath.split('/', Qt::SkipEmptyParts);
+                diskText = pathParts.isEmpty() ? rootPath : pathParts.last();
             }
+        }
+#endif
 
             QPushButton *leftButton = new QPushButton(this);
             QPushButton *rightButton = new QPushButton(this);
@@ -497,7 +549,6 @@ void MainWindow::deviceUpdate()
             io_iterator_t iter;
             kern_return_t kr;
 
-            QString devicePath = storage.device(); // get device path, f.e. "/dev/disk3s4s1"
 
             // get device base name (disk3)
             QString bsdDeviceName = devicePath.section('/', -1).left(5);
@@ -635,7 +686,7 @@ void MainWindow::deviceUpdate()
             leftButton->setFocusPolicy(Qt::ClickFocus);
             rightButton->setFocusPolicy(Qt::ClickFocus);
         }
-    }
+
     QSpacerItem *spacerLeft = new QSpacerItem(20, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
     QSpacerItem *spacerRight = new QSpacerItem(20, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
 
@@ -989,12 +1040,8 @@ void MainWindow::contextMenu_requested(const QPoint &point)
 
     QAction *openAction = new QAction("Open");
     openAction->setShortcut(QKeySequence(Qt::Key_Return));
-#ifdef Q_OS_WIN
     QAction *openWithAction = new QAction("Open with");
     openWithAction->setShortcut(QKeySequence(Qt::SHIFT | Qt::Key_Return));
-    connect(openWithAction, SIGNAL(triggered()), this, SLOT(on_actionOpen_with_triggered()));
-    menu->addAction(openWithAction);
-#endif
     QAction *editAction = new QAction("Edit");
     editAction->setShortcut(QKeySequence(Qt::Key_F4));
     QAction *removeAction = new QAction("Remove");
@@ -1024,6 +1071,7 @@ void MainWindow::contextMenu_requested(const QPoint &point)
 
 
     connect(openAction, &QAction::triggered, this, &MainWindow::on_actionOpen_selected_file_triggered);
+    connect(openWithAction, &QAction::triggered, this, &MainWindow::on_actionOpen_with_triggered);
     connect(editAction, &QAction::triggered, this, &MainWindow::on_editBtn_clicked);
     connect(removeAction, &QAction::triggered, this, &MainWindow::on_actionRemove_triggered);
     connect(removePermanentlyAction, &QAction::triggered, this, &MainWindow::on_actionRemove_permanently_triggered);
@@ -1039,6 +1087,7 @@ void MainWindow::contextMenu_requested(const QPoint &point)
     connect(propertiesAction, &QAction::triggered, this, &MainWindow::properties_triggered);
 
     menu->addAction(openAction);
+    menu->addAction(openWithAction);
     menu->addAction(editAction);
     menu->addSeparator();
     menu->addAction(removeAction);
@@ -1159,24 +1208,24 @@ void MainWindow::on_actionOpen_with_triggered()
     QFileInfo info = fsModel->fileInfo(fsModelIndex);
     QString filePath = info.filePath();
 
-    if (info.isFile()) {
+    if (!info.isFile())
+        return;
 #ifdef Q_OS_WIN
-        SHELLEXECUTEINFO shExecInfo = {sizeof(SHELLEXECUTEINFO)};
-        shExecInfo.lpFile = reinterpret_cast<LPCWSTR>(filePath.utf16());
-        shExecInfo.nShow = SW_SHOWNORMAL;
-        shExecInfo.fMask = SEE_MASK_INVOKEIDLIST;
-        shExecInfo.lpVerb = L"openas";
+    SHELLEXECUTEINFO shExecInfo = {sizeof(SHELLEXECUTEINFO)};
+    shExecInfo.lpFile = reinterpret_cast<LPCWSTR>(filePath.utf16());
+    shExecInfo.nShow = SW_SHOWNORMAL;
+    shExecInfo.fMask = SEE_MASK_INVOKEIDLIST;
+    shExecInfo.lpVerb = L"openas";
 
-        if (ShellExecuteEx(&shExecInfo)) {
-            // success
-        } else {
-            // error
-            QMessageBox::critical(nullptr, "Error", "Something went wrong!");
-        }
-#else
-        qDebug() << filePath;
-#endif
+    if (ShellExecuteEx(&shExecInfo)) {
+        // success
+    } else {
+        // error
+        QMessageBox::critical(nullptr, "Error", "Something went wrong!");
     }
+#else
+    MyOpenWithDialog::show(filePath, this);
+#endif
 }
 
 void MainWindow::on_actionRename_triggered()

@@ -37,5 +37,6 @@
         <file>icons/right_arrow.png</file>
         <file>icons/crowleys_commander.ico</file>
         <file>icons/crowleys_commander.png</file>
+        <file>icons/application.png</file>
     </qresource>
 </RCC>

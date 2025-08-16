@@ -13,6 +13,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     myfilesystemmodel.cpp \
+    myopenwithdialog.cpp \
     mysearchdialog.cpp \
     mysettingsdialog.cpp \
     mysortfilterproxymodel.cpp \
@@ -23,6 +24,7 @@ HEADERS += \
     devicewatcher.h \
     mainwindow.h \
     myfilesystemmodel.h \
+    myopenwithdialog.h \
     mysearchdialog.h \
     mysettingsdialog.h \
     mysortfilterproxymodel.h \
