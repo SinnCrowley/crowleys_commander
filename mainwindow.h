@@ -64,6 +64,7 @@ private slots:
     void on_actionRemove_permanently_triggered();
     void on_actionCreate_Folder_triggered();
     void on_actionCreate_Shortcut_triggered();
+    void on_actionCreate_Archive_triggered();
     void on_actionCut_triggered();
     void on_actionCopy_triggered();
     void on_actionPaste_triggered();

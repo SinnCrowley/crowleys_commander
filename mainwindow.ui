@@ -184,7 +184,7 @@ QToolTip {
           </sizepolicy>
          </property>
          <property name="contextMenuPolicy">
-          <enum>Qt::DefaultContextMenu</enum>
+          <enum>Qt::ContextMenuPolicy::DefaultContextMenu</enum>
          </property>
          <layout class="QVBoxLayout" name="leftPanelLayout">
           <property name="spacing">
@@ -217,7 +217,7 @@ QToolTip {
              </size>
             </property>
             <property name="layoutDirection">
-             <enum>Qt::LeftToRight</enum>
+             <enum>Qt::LayoutDirection::LeftToRight</enum>
             </property>
             <property name="autoFillBackground">
              <bool>false</bool>
@@ -227,7 +227,7 @@ QToolTip {
               <number>0</number>
              </property>
              <property name="sizeConstraint">
-              <enum>QLayout::SetDefaultConstraint</enum>
+              <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
              </property>
              <property name="leftMargin">
               <number>0</number>
@@ -289,7 +289,7 @@ QToolTip {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::NoFocus</enum>
+                <enum>Qt::FocusPolicy::NoFocus</enum>
                </property>
               </widget>
              </item>
@@ -306,7 +306,7 @@ QToolTip {
                 <string>diskSizeLeft</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -324,7 +324,7 @@ QToolTip {
                   </size>
                  </property>
                  <property name="focusPolicy">
-                  <enum>Qt::ClickFocus</enum>
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
                  </property>
                  <property name="text">
                   <string/>
@@ -353,7 +353,7 @@ QToolTip {
                   </size>
                  </property>
                  <property name="focusPolicy">
-                  <enum>Qt::ClickFocus</enum>
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
                  </property>
                  <property name="text">
                   <string/>
@@ -379,7 +379,7 @@ QToolTip {
                   </size>
                  </property>
                  <property name="focusPolicy">
-                  <enum>Qt::ClickFocus</enum>
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
                  </property>
                  <property name="text">
                   <string/>
@@ -404,7 +404,7 @@ QToolTip {
           <item>
            <widget class="QTabWidget" name="leftBar">
             <property name="tabPosition">
-             <enum>QTabWidget::North</enum>
+             <enum>QTabWidget::TabPosition::North</enum>
             </property>
             <property name="tabsClosable">
              <bool>false</bool>
@@ -501,7 +501,7 @@ QToolTip {
                 </size>
                </property>
                <property name="focusPolicy">
-                <enum>Qt::ClickFocus</enum>
+                <enum>Qt::FocusPolicy::ClickFocus</enum>
                </property>
               </widget>
              </item>
@@ -518,7 +518,7 @@ QToolTip {
                 <string>diskSizeRight</string>
                </property>
                <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                </property>
               </widget>
              </item>
@@ -536,7 +536,7 @@ QToolTip {
                   </size>
                  </property>
                  <property name="focusPolicy">
-                  <enum>Qt::ClickFocus</enum>
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
                  </property>
                  <property name="text">
                   <string/>
@@ -562,7 +562,7 @@ QToolTip {
                   </size>
                  </property>
                  <property name="focusPolicy">
-                  <enum>Qt::ClickFocus</enum>
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
                  </property>
                  <property name="text">
                   <string/>
@@ -588,10 +588,10 @@ QToolTip {
                   </size>
                  </property>
                  <property name="focusPolicy">
-                  <enum>Qt::ClickFocus</enum>
+                  <enum>Qt::FocusPolicy::ClickFocus</enum>
                  </property>
                  <property name="contextMenuPolicy">
-                  <enum>Qt::DefaultContextMenu</enum>
+                  <enum>Qt::ContextMenuPolicy::DefaultContextMenu</enum>
                  </property>
                  <property name="text">
                   <string/>
@@ -639,7 +639,7 @@ QToolTip {
         <number>0</number>
        </property>
        <property name="sizeConstraint">
-        <enum>QLayout::SetDefaultConstraint</enum>
+        <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
        </property>
        <property name="leftMargin">
         <number>0</number>
@@ -656,7 +656,7 @@ QToolTip {
        <item>
         <widget class="QPushButton" name="editBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F4 Edit</string>
@@ -666,7 +666,7 @@ QToolTip {
        <item>
         <widget class="QPushButton" name="copyBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F5 Copy</string>
@@ -676,7 +676,7 @@ QToolTip {
        <item>
         <widget class="QPushButton" name="moveBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F6 Move</string>
@@ -686,7 +686,7 @@ QToolTip {
        <item>
         <widget class="QPushButton" name="folderBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F7 New Folder</string>
@@ -696,7 +696,7 @@ QToolTip {
        <item>
         <widget class="QPushButton" name="deleteBtn">
          <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
+          <enum>Qt::FocusPolicy::NoFocus</enum>
          </property>
          <property name="text">
           <string>F8 Delete</string>
@@ -714,7 +714,7 @@ QToolTip {
      <x>0</x>
      <y>0</y>
      <width>930</width>
-     <height>24</height>
+     <height>26</height>
     </rect>
    </property>
    <property name="acceptDrops">
@@ -735,6 +735,7 @@ QToolTip {
     <addaction name="actionRemove_permanently"/>
     <addaction name="actionCreate_Folder"/>
     <addaction name="actionCreate_Shortcut"/>
+    <addaction name="actionCreate_Archive"/>
     <addaction name="separator"/>
     <addaction name="actionCut"/>
     <addaction name="actionCopy"/>
@@ -795,10 +796,10 @@ QToolTip {
     <string>Return</string>
    </property>
    <property name="shortcutContext">
-    <enum>Qt::WidgetShortcut</enum>
+    <enum>Qt::ShortcutContext::WidgetShortcut</enum>
    </property>
    <property name="priority">
-    <enum>QAction::LowPriority</enum>
+    <enum>QAction::Priority::LowPriority</enum>
    </property>
   </action>
   <action name="actionOpen_with">
@@ -986,6 +987,11 @@ QToolTip {
    </property>
    <property name="shortcut">
     <string>Ctrl+P</string>
+   </property>
+  </action>
+  <action name="actionCreate_Archive">
+   <property name="text">
+    <string>Create Archive</string>
    </property>
   </action>
  </widget>

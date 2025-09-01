@@ -1,14 +1,32 @@
 /*  BUG FIXES:
  *
- *  !!!!! fix drive list getting - to test on dad's pc
+ *  sorting by modified date in archives
  *
  *  NEW FEATURES:
  *
- *  List of all partitions (even not mounted) - ??
+ *  remove some elements from context menu inside an archive (rename, edit in read-only, copy as path, new file ???, new folder ???, open terminal, properties ???)
  *
- *  add pack/unpack, settings, group rename, copy/delete/move in background
+ *  remove + remove permanetnly (doing the same), create shortcut ??? in an archive
+ *
+ *  archive opening again in tabs after app closing
+ *
+ *  archive with encryption - opening
+ *
+ *  archive creation encryption + extended formats - tar.gz, tar.xz...
+ *
+ *  pack - if I Drag&Drop files into an archive, if I click pack on selected files (or just under cursor) with archive creation,
+ *  if I click Copy/Move into an archive, on ctrl+c + ctrl+V
+ *
+ *  unpack - if I Drag&Drop files from an archive, if I click unpack on archive,
+ *  if I click Copy/Move from an archive (Move also copying), on ctrl+c + ctrl+V
+ *
+ *  List of all partitions LINUX + maybe macOS (even not mounted) + mount on click (insert password if it's needed) - ??
+ *
+ *  settings, group rename, copy/delete/move in background (?)
  *
  *  add to menu: properties (linux + macos), share
+ *
+ *  maybe restore selected index (cursor) on re-open
  *
  *  add function in settings select or not select file extension while rename
  *
@@ -16,9 +34,11 @@
  *
  *  add FTP and SSH connections
  *
- *  network drives on macOS (?)
+ *  network drives on macOS (?) maybe not only macOS
  *
  *  sync user profiles via cloud
+ *
+ *  edit readme - missing support of rar creation because of proprietary licence
 */
 
 #include <QtGlobal>
@@ -52,12 +72,13 @@
 #include <QStack>
 #include <QStorageInfo>
 #include <QMimeData>
+#include <QTemporaryFile>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "mysearchdialog.h"
 #include "mysettingsdialog.h"
-#include "myopenwithdialog.h"
+#include "mycreatearchivedialog.h"
 
 #include "myfilesystemmodel.h"
 #include "mytreeview.h"
@@ -211,49 +232,105 @@ void MainWindow::createView(QTabWidget *tabBar, QString path)
 void MainWindow::directoryChange(QString path, const QString &position)
 {
     QString folderName;
-    path = QDir(path).absolutePath() + "/";
-    if (path == "//") {
-        path.chop(1);
-        folderName = "/";
-    } else {
-        QDir dirInfo(path);
-        if(dirInfo.isRoot())
-            folderName = path.left(path.indexOf(":") + 1);
-        else
-            folderName = dirInfo.dirName();
-    }
-
+    MyFileSystemModel *fsModel;
+    MySortFilterProxyModel *sortModel;
+    MyTreeView *view;
+    QLineEdit *pathEdit;
     QTabWidget *tabWidget = (position == "left") ? ui->leftBar : ui->rightBar;
 
-    MyTreeView *view = tabWidget->currentWidget()->findChild<MyTreeView*>();
-    QLineEdit *pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
+    view = tabWidget->currentWidget()->findChild<MyTreeView*>();
+    pathEdit = tabWidget->currentWidget()->findChild<QLineEdit*>();
+    sortModel = view->sortModel;
+    fsModel = qobject_cast<MyFileSystemModel*>(sortModel->sourceModel());
 
-    MySortFilterProxyModel *sortModel = view->sortModel;
-    MyFileSystemModel *fsModel = sortModel->fsModel;
+    // Normalize path and determine if it's an archive or a path inside an archive
+    bool isArchivePath = fsModel->archiveManager.isArchive(path);
+    bool inArchiveMode = fsModel->inArchiveMode;
+    QString archivePath, internalArchivePath;
 
-    if (QDir(path).isRoot()) {
-        fsModel->setFilter(QDir::AllDirs | QDir::NoDotAndDotDot | QDir::Files | QDir::System);
+    if (inArchiveMode) {
+        // Already in archive mode, path is relative to the archive
+        archivePath = fsModel->rootPath(); // Path to the archive file
+        internalArchivePath = path;
+
+        if (path == "..") {
+            // Navigating up or exiting archive
+            QString parentPath = fsModel->archiveManager.getParentPath(fsModel->archiveInternalPath);
+            if (parentPath == "..") {
+                // Exiting archive root
+                archivePath = QFileInfo(archivePath).absolutePath(); // Parent dir of archive
+                folderName = QFileInfo(archivePath).fileName(); // Use archive file name
+                pathEdit->setText(QDir::toNativeSeparators(archivePath + "/"));
+                inArchiveMode = false; // Will be set in setRootPath
+            } else {
+                // Navigating up inside archive
+                folderName = parentPath == "/" ? QFileInfo(fsModel->rootPath()).fileName() : QFileInfo(parentPath).fileName();
+                if (folderName.isEmpty()) {
+                    // Fallback for root or malformed path
+                    folderName = QFileInfo(fsModel->rootPath()).fileName();
+                }
+                pathEdit->setText(QDir::toNativeSeparators(fsModel->rootPath()) + ":" + parentPath);
+            }
+        } else {
+            // Navigating to a folder inside archive
+            internalArchivePath = fsModel->archiveManager.normalizePath(internalArchivePath);
+            folderName = QFileInfo(internalArchivePath).fileName();
+            if (folderName.isEmpty()) {
+                // Fallback for root of archive
+                folderName = QFileInfo(fsModel->rootPath()).fileName();
+            }
+            pathEdit->setText(QDir::toNativeSeparators(fsModel->rootPath()) + ":" + internalArchivePath);
+        }
+    } else if (isArchivePath) {
+        // Entering archive mode
+        archivePath = path;
+        internalArchivePath = "/";
+        folderName = QFileInfo(archivePath).fileName();
+        pathEdit->setText(QDir::toNativeSeparators(archivePath) + ":" + internalArchivePath);
     } else {
-        if(fsModel->filter().testFlag(QDir::NoDotAndDotDot))
-            fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::System);
+        // Filesystem mode
+        path = QDir(path).absolutePath();
+        if (!path.endsWith("/")) path += "/";
+        if (path == "//") {
+            path.chop(1);
+            folderName = "/";
+        } else {
+            QDir dirInfo(path);
+            if (dirInfo.isRoot())
+                folderName = path.left(path.indexOf(":") + 1);
+            else
+                folderName = dirInfo.dirName();
+        }
+        pathEdit->setText(QDir::toNativeSeparators(path));
     }
 
-    if (!isNavTriggered && QDir(fsModel->rootPath()).exists())
+    // Set filters (skip for archives)
+    if (!inArchiveMode && !isArchivePath) {
+        if (QDir(path).isRoot()) {
+            fsModel->setFilter(QDir::AllDirs | QDir::NoDotAndDotDot | QDir::Files | QDir::System);
+        } else {
+            if (fsModel->filter().testFlag(QDir::NoDotAndDotDot))
+                fsModel->setFilter(QDir::AllDirs | QDir::NoDot | QDir::Files | QDir::System);
+        }
+    } else {
+        fsModel->setFilter(QDir::NoFilter);
+    }
+
+    // Add to history (skip for archives if not needed)
+    if (!isNavTriggered && !inArchiveMode && QDir(fsModel->rootPath()).exists()) {
         addToHistory(fsModel->rootPath(), tabWidget->currentIndex(), qApp->focusWidget()->objectName());
+    }
 
     isNavTriggered = false;
 
+    // Set new root path
     fsModel->setRootPath(path);
     view->setRootIndex(sortModel->mapFromSource(fsModel->index(path)));
 
     qApp->processEvents();
 
+    // Update tab text
     tabWidget->setTabText(tabWidget->currentIndex(), folderName);
-
-    if (QDir(path).isRoot())
-        pathEdit->setText(QDir::toNativeSeparators(QDir(path).absolutePath()));
-    else
-        pathEdit->setText(QDir::toNativeSeparators(QDir(path).absolutePath() + "/"));
 
     view->clearSelection();
     view->setFocus();
@@ -261,15 +338,19 @@ void MainWindow::directoryChange(QString path, const QString &position)
     tabsUpdate(tabWidget);
     diskStatusUpdate(tabWidget);
 
+    // Skip shortcut checks for archives
+    if (!inArchiveMode && !isArchivePath) {
 #ifdef Q_OS_WIN
-    // check shortcuts and repair if is crashed with Windows API
-    QDir *dirInfo = new QDir(path);
-    QFileInfoList fileList = dirInfo->entryInfoList(QDir::Files | QDir::System);
-    foreach (const QFileInfo &fileInfo, fileList) {
-        if(fileInfo.isSymLink() && !QFile::exists(fileInfo.symLinkTarget()))
-            updateShortcuts(fileInfo.absoluteFilePath());
-    }
+        QDir dirInfo(path);
+        QFileInfoList fileList = dirInfo.entryInfoList(QDir::Files | QDir::System);
+        foreach (const QFileInfo &fileInfo, fileList) {
+            if (fileInfo.isSymLink() && !QFile::exists(fileInfo.symLinkTarget())) {
+                updateShortcuts(fileInfo.absoluteFilePath());
+            }
+        }
 #endif
+    }
+
     view->forceFocusAfterLayout();
 }
 
@@ -443,7 +524,6 @@ void MainWindow::deviceUpdate()
             continue;
 
         QString rootPath = storage.rootPath();
-        QString devicePath = storage.device();
         QString fsType = storage.fileSystemType();
 
         // Exclude system partitions or temporary filesystems
@@ -496,6 +576,8 @@ void MainWindow::deviceUpdate()
         diskText = pathParts.isEmpty() ? "/" : pathParts.last();
 
 #else // Linux
+        QString devicePath = storage.device();
+
         if (rootPath == "/") {
             diskText = "/";
         } else {
@@ -965,27 +1047,80 @@ void MainWindow::view_activated(const QModelIndex &index)
     MyTreeView *view = static_cast<MyTreeView*>(sender());
     QString position = view->objectName();
     MySortFilterProxyModel *sortModel = view->sortModel;
-    MyFileSystemModel *fsModel = sortModel->fsModel;
+    MyFileSystemModel *fsModel = qobject_cast<MyFileSystemModel*>(sortModel->sourceModel());
 
     QModelIndex fsModelIndex = sortModel->mapToSource(index);
-
-    QFileInfo info = fsModel->fileInfo(fsModelIndex);
     QString path = fsModel->filePath(fsModelIndex);
 
+    if (fsModel->inArchiveMode) {
+        QString internalPath = path;
+
+        if (internalPath == "..") {
+            directoryChange(internalPath, position);
+            return;
+        }
+
+        bool isDir = false;
+        foreach (const ArchiveEntry &entry, fsModel->archiveEntries) {
+            if (entry.path == internalPath && entry.isDir) {
+                isDir = true;
+                break;
+            }
+        }
+
+        if (isDir) {
+            directoryChange(internalPath, position);
+        } else {
+            // Extract and open file
+            QByteArray fileData = fsModel->archiveManager.extractFile(internalPath);
+            if (fileData.isEmpty()) {
+                QMessageBox::warning(this, tr("Error"), tr("Failed to extract file from archive."));
+                return;
+            }
+
+            // Create temporary file
+            QTemporaryFile tempFile(QDir::tempPath() + "/XXXXXX_" + QFileInfo(internalPath).fileName());
+            tempFile.setAutoRemove(false);
+            if (!tempFile.open()) {
+                QMessageBox::warning(this, tr("Error"), tr("Failed to create temporary file."));
+                return;
+            }
+            tempFile.write(fileData);
+            tempFile.flush(); // save on disk
+            tempFile.close();
+
+            // Open temporary file
+            if (!QDesktopServices::openUrl(QUrl::fromLocalFile(tempFile.fileName()))) {
+                QMessageBox::warning(this, tr("Error"), tr("Failed to open temporary file."));
+                tempFile.remove(); // remove if not openned
+            }
+        }
+    } else {
+        // Filesystem mode
+        QFileInfo info = fsModel->fileInfo(fsModelIndex);
+
 #ifdef Q_OS_WIN
-    if (info.isSymLink() && !QFile::exists(info.symLinkTarget())) {
-        updateShortcuts(info.absoluteFilePath());
-        path = fsModel->filePath(fsModelIndex);
-    }
+        if (info.isSymLink() && !QFile::exists(info.symLinkTarget())) {
+            updateShortcuts(info.absoluteFilePath());
+            path = fsModel->filePath(fsModelIndex);
+            info = fsModel->fileInfo(fsModelIndex);
+        }
 #endif
 
-    if (info.isDir()) {
-        if (info.isReadable() && info.isExecutable())
+        if (fsModel->archiveManager.isArchive(path)) {
             directoryChange(path, position);
-        else
-            QMessageBox::warning(this, "Access denied", "Do not have access rights to the directory.");
-    } else {
-        QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+            return;
+        }
+
+        if (info.isDir()) {
+            if (info.isReadable() && info.isExecutable()) {
+                directoryChange(path, position);
+            } else {
+                QMessageBox::warning(this, tr("Access denied"), tr("Do not have access rights to the directory."));
+            }
+        } else {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+        }
     }
 }
 
@@ -1208,10 +1343,36 @@ void MainWindow::on_actionOpen_with_triggered()
     QFileInfo info = fsModel->fileInfo(fsModelIndex);
     QString filePath = info.filePath();
 
-    if (!info.isFile())
+    if (fsModel->inArchiveMode) {
+        QString internalPath = filePath;
+
+        // Extract and open file
+        QByteArray fileData = fsModel->archiveManager.extractFile(internalPath);
+        if (fileData.isEmpty()) {
+            QMessageBox::warning(this, tr("Error"), tr("Failed to extract file from archive."));
+            return;
+        }
+
+        // Create temporary file
+        QTemporaryFile tempFile(QDir::tempPath() + "/XXXXXX_" + QFileInfo(internalPath).fileName());
+        tempFile.setAutoRemove(false);
+        if (!tempFile.open()) {
+            QMessageBox::warning(this, tr("Error"), tr("Failed to create temporary file."));
+            return;
+        }
+        tempFile.write(fileData);
+        tempFile.flush(); // save on disk
+        tempFile.close();
+
+        filePath = tempFile.fileName();
+    }
+
+    if (!info.isFile() && !fsModel->inArchiveMode)
         return;
+
 #ifdef Q_OS_WIN
-    SHELLEXECUTEINFO shExecInfo = {sizeof(SHELLEXECUTEINFO)};
+    SHELLEXECUTEINFO shExecInfo;
+    ZeroMemory(&shExecInfo, sizeof(shExecInfo));
     shExecInfo.lpFile = reinterpret_cast<LPCWSTR>(filePath.utf16());
     shExecInfo.nShow = SW_SHOWNORMAL;
     shExecInfo.fMask = SEE_MASK_INVOKEIDLIST;
@@ -1224,6 +1385,7 @@ void MainWindow::on_actionOpen_with_triggered()
         QMessageBox::critical(nullptr, "Error", "Something went wrong!");
     }
 #else
+    #include "myopenwithdialog.h"
     MyOpenWithDialog::show(filePath, this);
 #endif
 }
@@ -1234,7 +1396,12 @@ void MainWindow::on_actionRename_triggered()
         return;
 
     MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
-    view->edit(view->currentIndex());
+
+    MyFileSystemModel *fsModel = view->sortModel->fsModel;
+    if (!fsModel->isInArchiveMode())
+        view->edit(view->currentIndex());
+    else
+        QMessageBox::warning(nullptr, "Error", "Cannot rename files inside an archive!");
 }
 
 void MainWindow::on_actionRemove_triggered()
@@ -1265,7 +1432,7 @@ void MainWindow::on_actionRemove_triggered()
 
         int count = 0;
 
-        for (const QString &file : filePaths) {
+        foreach (const QString &file, filePaths) {
             if (progressDialog->wasCanceled())
                 break;
 
@@ -1283,7 +1450,6 @@ void MainWindow::on_actionRemove_triggered()
 
         progressDialog->setValue(total);
         progressDialog->close();
-        delete progressDialog;
     }
 
 }
@@ -1318,7 +1484,7 @@ void MainWindow::on_actionRemove_permanently_triggered()
         int total = 0;
         int count = 0;
 
-        for (const QString &file : filePaths) {
+        foreach (const QString &file, filePaths) {
             QFileInfo fileInfo(file);
             if (fileInfo.isDir()) {
                 total += fsModel->countEntriesInDirectory(file);
@@ -1332,38 +1498,22 @@ void MainWindow::on_actionRemove_permanently_triggered()
         progressDialog->show();
         QCoreApplication::processEvents();
 
+        RemovePolicy policy;
+
         foreach (const QString &file, filePaths) {
             QFileInfo fileInfo(file);
 
             if (progressDialog->wasCanceled())
                 break;
 
-            if (!fileInfo.isWritable()) { // if a file has read-only attribute
-                QMessageBox readOnlyMsg;
-                readOnlyMsg.setWindowTitle("Read-only file");
-                readOnlyMsg.setText("The file \"" + fileInfo.fileName() + "\" is read-only. Do you want to delete it?");
-                readOnlyMsg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-                readOnlyMsg.setDefaultButton(QMessageBox::Yes);
-                readOnlyMsg.setIcon(QMessageBox::Warning);
+            if (fileInfo.isDir() && !fileInfo.isSymLink())
+                fsModel->removeDirectory(file, progressDialog, count, total, policy);
+            else {
+                fsModel->removeFileWithPolicy(file, policy);
 
-                if (readOnlyMsg.exec() == QMessageBox::Yes) {
-                    QFile fileObject(file);
-                    // Remove read-only attribute
-                    fileObject.setPermissions(fileObject.permissions() | QFile::WriteOwner);
-                }
-            } else {
-                if (fileInfo.isDir() && !fileInfo.isSymLink()) {
-                    fsModel->removeDirectory(file, progressDialog, count, total);
-                } else {
-                    QFile(file).remove();
-                    count++;
-                }
+                count++;
                 progressDialog->setValue(count);
-                progressDialog->setLabelText(
-                    QString("Removed %1 of %2")
-                        .arg(count)
-                        .arg(total)
-                    );
+                progressDialog->setLabelText(QString("Removed %1 of %2").arg(count).arg(total));
                 QCoreApplication::processEvents();
             }
         }
@@ -1428,6 +1578,22 @@ void MainWindow::on_actionCreate_Shortcut_triggered()
 
     view->clearSelection();
 }
+
+void MainWindow::on_actionCreate_Archive_triggered()
+{
+    if (!qobject_cast<MyTreeView*>(qApp->focusWidget()))
+        return;
+
+    MyTreeView *view = static_cast<MyTreeView*> (qApp->focusWidget());
+
+    MySortFilterProxyModel *sortModel = view->sortModel;
+    MyFileSystemModel *fsModel = sortModel->fsModel;
+    QString path = fsModel->rootPath();
+
+    MyCreateArchiveDialog *dialog = new MyCreateArchiveDialog(this, path);
+    dialog->exec();
+}
+
 
 void MainWindow::on_actionCut_triggered()
 {
@@ -1666,7 +1832,8 @@ void MainWindow::properties_triggered()
     SHELLEXECUTEINFO sei;
     ZeroMemory(&sei, sizeof(sei));
     sei.cbSize = sizeof(sei);
-    sei.lpFile = reinterpret_cast<LPCWSTR>(path.toStdWString().c_str());
+    std::wstring wPath = path.toStdWString();
+    sei.lpFile = wPath.c_str();
     sei.lpVerb = L"properties";
     sei.fMask = SEE_MASK_INVOKEIDLIST;
     ShellExecuteEx(&sei);
@@ -2043,17 +2210,24 @@ void MainWindow::on_editBtn_clicked()
     QModelIndex fsModelIndex = sortModel->mapToSource(view->currentIndex());
     QFileInfo file = fsModel->fileInfo(fsModelIndex);
 
+    QString filePath = file.filePath();
+
+    if (fsModel->inArchiveMode) {
+        QMessageBox::warning(this, tr("Warning"), tr("You cannot edit files inside an archive."));
+        return;
+    }
+
     if (file.isFile()) {
         /*if (!file.isWritable())
-            QMessageBox::warning(this, "Read-only", "This file is read-only.");*/
+        QMessageBox::warning(this, "Read-only", "This file is read-only.");*/
         QProcess *process = new QProcess(this);
 
 #ifdef Q_OS_WIN
         // Open with Notepad in Windows
-        process->start("C:/Windows/System32/Notepad.exe", QStringList() << file.absoluteFilePath());
+        process->start("C:/Windows/System32/Notepad.exe", QStringList() << filePath);
         return;
 #elif defined Q_OS_MACOS
-        QString appleScript = "tell application \"TextEdit\" to open POSIX file \"" + file.absoluteFilePath() + "\"";
+        QString appleScript = "tell application \"TextEdit\" to open POSIX file \"" + filePath + "\"";
         process->start("/usr/bin/osascript", QStringList() << "-e" << appleScript);
         return;
 #else
@@ -2063,7 +2237,7 @@ void MainWindow::on_editBtn_clicked()
         QString output = process->readAllStandardOutput().trimmed();
         QStringList splittedOutput = output.split(".");
         output = splittedOutput[splittedOutput.size()-2];
-        process->start(output, QStringList() << file.absoluteFilePath());
+        process->start(output, QStringList() << filePath);
 #endif
     }
 }
@@ -2311,4 +2485,3 @@ void MainWindow::onRootPathChanged(const QString &newPath, const QString &positi
         }
     }
 }
-

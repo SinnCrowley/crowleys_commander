@@ -40,23 +40,62 @@ QString formatBytes(qint64 bytes) {
 
 void MyFileSystemModel::setRootPath(const QString &path)
 {
-    QDir dir(path);
-
     beginResetModel();
-    this->m_path = path;
-    fileList = dir.entryInfoList(filters);
-    fileCount = 0;
+    emit beforeReset();
+
+    if (archiveManager.isArchive(path)) {
+        // Entering archive mode
+        inArchiveMode = true;
+        archiveInternalPath = "/";
+        if (archiveManager.openArchive(path)) {
+            m_path = path;
+            archiveEntries = archiveManager.listEntries(archiveInternalPath);
+            if (!fileSystemWatcher->directories().isEmpty())
+                fileSystemWatcher->removePaths(fileSystemWatcher->directories());
+            fileSystemWatcher->addPath(path);
+        } else {
+            inArchiveMode = false;
+        }
+    } else if (inArchiveMode) {
+        // Inside archive, check for exit or navigation
+        if (path == "..") {
+            // Exit archive
+            QString parentDir = QFileInfo(m_path).absolutePath();
+            inArchiveMode = false;
+            archiveManager.close();
+            archiveInternalPath = "/";
+            archiveEntries.clear();
+            m_path = parentDir;
+            QDir dir(m_path);
+            fileList = dir.entryInfoList(filters, QDir::DirsFirst | QDir::Name);
+            if (!fileSystemWatcher->directories().isEmpty())
+                fileSystemWatcher->removePaths(fileSystemWatcher->directories());
+            fileSystemWatcher->addPath(m_path);
+        } else {
+            // Navigate inside archive
+            archiveInternalPath = archiveManager.normalizePath(path);
+            archiveEntries = archiveManager.listEntries(archiveInternalPath);
+        }
+    } else {
+        // Filesystem mode
+        inArchiveMode = false;
+        m_path = path;
+        QDir dir(path);
+        if (!dir.exists()) {
+            dir = QDir::home();
+            m_path = dir.absolutePath();
+        }
+        fileList = dir.entryInfoList(filters, QDir::DirsFirst | QDir::Name);
+        if (!fileSystemWatcher->directories().isEmpty())
+            fileSystemWatcher->removePaths(fileSystemWatcher->directories());
+        do {
+            fileSystemWatcher->addPath(dir.absolutePath());
+        } while (dir.cdUp());
+    }
+
+    fileCount = inArchiveMode ? archiveEntries.size() : fileList.size();
+    emit afterReset();
     endResetModel();
-
-    if (!fileSystemWatcher->directories().isEmpty())
-        fileSystemWatcher->removePaths(fileSystemWatcher->directories());
-
-    do {
-        fileSystemWatcher->addPath(dir.absolutePath());
-    } while (dir.cdUp());
-
-    while (canFetchMore(QModelIndex()))
-        fetchMore(QModelIndex());
 }
 
 QString MyFileSystemModel::rootPath() const
@@ -69,6 +108,13 @@ QFileInfo MyFileSystemModel::fileInfo(const QModelIndex &index) const
     if (!index.isValid() || index.row() >= fileList.size())
         return QFileInfo();
 
+    if (inArchiveMode) {
+        // Simulate QFileInfo for archive entries
+        const ArchiveEntry &entry = archiveEntries[index.row()];
+        QFileInfo info;
+        info.setFile(entry.path);
+        return info; // Limited QFileInfo, as archives don't provide full metadata
+    }
     return fileList.at(index.row());
 }
 
@@ -77,24 +123,33 @@ QString MyFileSystemModel::path(const QModelIndex &index) const
     if (!index.isValid() || index.row() >= fileList.size())
         return "";
 
+    if (inArchiveMode) {
+        return archiveEntries[index.row()].path;
+    }
+
     return fileList.at(index.row()).absoluteFilePath();
 }
 
 QString MyFileSystemModel::filePath(const QModelIndex &index) const
 {
-    if (!index.isValid() || index.row() >= fileList.size())
-        return "";
-
-    return fileList.at(index.row()).absoluteFilePath();
+    return path(index);
 }
 
 QModelIndex MyFileSystemModel::index(const QString &path, int column) const
 {
-    for (int row = 0; row < fileList.size(); ++row) {
-        if (fileList[row].absoluteFilePath() == path)
-            return createIndex(row, column, const_cast<QFileInfo*>(&fileList[row]));
+    if (inArchiveMode) {
+        for (int i = 0; i < archiveEntries.size(); ++i) {
+            if (archiveEntries[i].path == path) {
+                return createIndex(i, column);
+            }
+        }
+    } else {
+        for (int i = 0; i < fileList.size(); ++i) {
+            if (fileList[i].absoluteFilePath() == path) {
+                return createIndex(i, column);
+            }
+        }
     }
-
     return QModelIndex();
 }
 
@@ -102,7 +157,7 @@ QModelIndex MyFileSystemModel::index(const QString &path, int column) const
 // Data loading
 bool MyFileSystemModel::canFetchMore(const QModelIndex &parent) const
 {
-    if (parent.isValid())
+    if (parent.isValid() || inArchiveMode)
         return false;
 
     return (fileCount < fileList.size());
@@ -131,7 +186,9 @@ void MyFileSystemModel::fetchMore(const QModelIndex &parent)
 // Data presentation
 int MyFileSystemModel::rowCount(const QModelIndex &parent) const
 {
-    return parent.isValid() ? 0 : fileCount;
+    //return parent.isValid() ? 0 : fileCount;
+    if (parent.isValid()) return 0;
+    return inArchiveMode ? archiveEntries.size() : fileList.size();
 }
 
 int MyFileSystemModel::columnCount(const QModelIndex &parent) const
@@ -142,88 +199,153 @@ int MyFileSystemModel::columnCount(const QModelIndex &parent) const
 
 QVariant MyFileSystemModel::data(const QModelIndex &index, int role) const
 {
-    if (index.column() == 0 && role == Qt::DecorationRole ) {
-        QFileInfo info = fileInfo(index);
-        QFileIconProvider provider;
-        QIcon icon = provider.icon(info);
+    if (inArchiveMode) {
+        const ArchiveEntry &entry = archiveEntries[index.row()];
 
-        if (info.fileName() == "..")
-            return QIcon(QPixmap(":/icons/icons/back.png"));
+        QFileInfo info(entry.name);
 
-        QPixmap pixmap(32,32);
-        pixmap.fill(Qt::transparent);
-        QPainter painter(&pixmap);
+        if (index.column() == 0 && role == Qt::DecorationRole) {
+            if (entry.name == "..")
+                return QIcon(QPixmap(":/icons/icons/back.png"));
 
-        if (info.isHidden())
-            painter.setOpacity(0.7);
+            return entry.icon;
+        }
 
-        icon.paint(&painter, QRect(0, 0, 32, 32));
-        painter.end();
-        return QIcon(pixmap);
-    }
+        if (role == Qt::DisplayRole) {
 
-    if (role == Qt::DisplayRole) {
-        QFileInfo info = fileInfo(index);
-
-        // files and folders that start with dot (.gitignore, .atom)
-        if (info.completeBaseName() == "") {
-            if(index.column() == 0)
-                return "." + info.suffix();
-            if(index.column() == 1) {
-                if(info.isDir())
-                    return "Folder";
+            // files and folders that start with dot (.gitignore, .atom)
+            if (info.completeBaseName() == "") {
+                if(index.column() == 0)
+                    return "." + info.suffix().toLower();
+                if(index.column() == 1) {
+                    if(entry.isDir)
+                        return "Folder";
+                    else
+                        return "";
+                }
+            }
+            if (index.column() == 0) {
+                if (entry.name != "..")
+                    return entry.name.left(entry.name.lastIndexOf('.'));
+                else return entry.name;
+            }
+            if (index.column() == 1) {
+                if (entry.isDir && !info.isSymLink())
+                    return QString("Folder");
+                else if (info.isSymLink())
+                    return QString("Shortcut");
                 else
+                    return info.suffix().toLower();
+            }
+            if (index.column() == 2) {
+                if (entry.isDir && !info.isSymLink()) {
                     return "";
+                } else {
+                    qint64 size = entry.size;
+                    float normalizedSize;
+                    if (size > 1073741824) {
+                        normalizedSize = size / 1073741824.;
+                        return QString::number(normalizedSize, 'f', 2) + " Gb";
+                    }
+                    if (size > 1048576) {
+                        normalizedSize = size / 1048576.;
+                        return QString::number(normalizedSize, 'f', 2) + " Mb";
+                    }
+                    if (size > 1024) {
+                        normalizedSize = size / 1024.;
+                        return QString::number(normalizedSize, 'f', 2) + " Kb";
+                    }
+                    return QString::number(size) + " b";
+                }
+            }
+            if (index.column() == 3) {
+                return entry.modified;
             }
         }
+    } else {
+        if (index.column() == 0 && role == Qt::DecorationRole) {
+            QFileInfo info = fileInfo(index);
+            QFileIconProvider provider;
+            QIcon icon = provider.icon(info);
 
-        if (index.column() == 0) {
-            if (info.isDir() && !info.isSymLink())
+            if (info.fileName() == "..")
+                return QIcon(QPixmap(":/icons/icons/back.png"));
+
+            QPixmap pixmap(32,32);
+            pixmap.fill(Qt::transparent);
+            QPainter painter(&pixmap);
+
+            if (info.isHidden())
+                painter.setOpacity(0.7);
+
+            icon.paint(&painter, QRect(0, 0, 32, 32));
+            painter.end();
+            return QIcon(pixmap);
+        }
+
+        if (role == Qt::DisplayRole) {
+            QFileInfo info = fileInfo(index);
+
+            // files and folders that start with dot (.gitignore, .atom)
+            if (info.completeBaseName() == "") {
+                if(index.column() == 0)
+                    return "." + info.suffix();
+                if(index.column() == 1) {
+                    if(info.isDir())
+                        return "Folder";
+                    else
+                        return "";
+                }
+            }
+
+            if (index.column() == 0) {
+                if (info.isDir() && !info.isSymLink())
+                    return info.fileName();
+                else
+                    return info.completeBaseName();
+            }
+
+            if (index.column() == 1) {
+                if (info.isDir() && !info.isSymLink())
+                    return QString("Folder");
+                else if (info.isSymLink())
+                    return QString("Shortcut");
+                else
+                    return info.suffix().toLower();
+            }
+
+            if (index.column() == 2) {
+                if (info.isDir() && !info.isSymLink()) {
+                    return "";
+                } else {
+                    qint64 size = info.size();
+                    float normalizedSize;
+                    if (size > 1073741824) {
+                        normalizedSize = size / 1073741824.;
+                        return QString::number(normalizedSize, 'f', 2) + " Gb";
+                    }
+                    if (size > 1048576) {
+                        normalizedSize = size / 1048576.;
+                        return QString::number(normalizedSize, 'f', 2) + " Mb";
+                    }
+                    if (size > 1024) {
+                        normalizedSize = size / 1024.;
+                        return QString::number(normalizedSize, 'f', 2) + " Kb";
+                    }
+                    return QString::number(size) + " b";
+                }
+            }
+
+            if (index.column() == 3)
+                return info.lastModified();
+        }
+
+        if (role == Qt::EditRole) {
+            QFileInfo info = fileInfo(index);
+
+            if(index.column() == 0)
                 return info.fileName();
-            else
-                return info.completeBaseName();
         }
-
-        if (index.column() == 1) {
-            if (info.isDir() && !info.isSymLink())
-                return QString("Folder");
-            else if (info.isSymLink())
-                return QString("Shortcut");
-            else
-                return info.suffix().toLower();
-        }
-
-        if (index.column() == 2) {
-            if (info.isDir() && !info.isSymLink()) {
-                return "";
-            } else {
-                qint64 size = info.size();
-                float normalizedSize;
-                if (size > 1073741824) {
-                    normalizedSize = size / 1073741824.;
-                    return QString::number(normalizedSize, 'f', 2) + " Gb";
-                }
-                if (size > 1048576) {
-                    normalizedSize = size / 1048576.;
-                    return QString::number(normalizedSize, 'f', 2) + " Mb";
-                }
-                if (size > 1024) {
-                    normalizedSize = size / 1024.;
-                    return QString::number(normalizedSize, 'f', 2) + " Kb";
-                }
-                return QString::number(size) + " b";
-            }
-        }
-
-        if (index.column() == 3)
-            return info.metadataChangeTime();
-    }
-
-    if (role == Qt::EditRole) {
-        QFileInfo info = fileInfo(index);
-
-        if(index.column() == 0)
-            return info.fileName();
     }
 
     return {};
@@ -250,6 +372,9 @@ QVariant MyFileSystemModel::headerData(int section, Qt::Orientation orientation,
 
 bool MyFileSystemModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
+    if (inArchiveMode)
+        return false;
+
     if (role == Qt::EditRole && index.column() == 0) {
         QFileInfo info = fileInfo(index);
         QString oldFilePath = info.filePath();
@@ -288,7 +413,7 @@ qint64 MyFileSystemModel::calculateDirectorySize(const QFileInfo &file)
             QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System
             );
 
-        for (const QFileInfo &entry : entries) {
+        foreach (const QFileInfo &entry, entries) {
             if (entry.isSymLink()) continue;
 
             if (entry.isDir()) {
@@ -632,28 +757,72 @@ bool MyFileSystemModel::copyDirectory(const QString &sourceDirPath, const QStrin
     return true;
 }
 
+// remove files or directories with policy (remove all, skip all)
+bool MyFileSystemModel::removeFileWithPolicy(const QString &filePath, RemovePolicy &policy)
+{
+    QFileInfo entry(filePath);
+
+    if (!entry.isWritable()) {
+        if (policy.skipAllReadOnly) {
+            return false;
+        } else if (policy.removeAllReadOnly) {
+            QFile f(entry.absoluteFilePath());
+            f.setPermissions(f.permissions() | QFile::WriteOwner);
+            return QFile::remove(entry.absoluteFilePath());
+        } else {
+            // ask user
+            QMessageBox msg;
+            msg.setWindowTitle("Read-only");
+            msg.setIcon(QMessageBox::Warning);
+            msg.setText("File \"" + entry.fileName() + "\" is read-only! Do you want to remove it?");
+            QPushButton* yesButton = msg.addButton("Yes", QMessageBox::YesRole);
+            QPushButton* allButton = msg.addButton("Remove all", QMessageBox::YesRole);
+            QPushButton* skipButton = msg.addButton("Skip", QMessageBox::NoRole);
+            QPushButton* skipAllButton = msg.addButton("Skip all", QMessageBox::NoRole);
+            msg.exec();
+
+            if (msg.clickedButton() == (QAbstractButton*) yesButton) {
+                QFile f(entry.absoluteFilePath());
+                f.setPermissions(f.permissions() | QFile::WriteOwner);
+                return QFile::remove(entry.absoluteFilePath());
+            } else if (msg.clickedButton() == (QAbstractButton*) allButton) {
+                policy.removeAllReadOnly = true;
+                QFile f(entry.absoluteFilePath());
+                f.setPermissions(f.permissions() | QFile::WriteOwner);
+                return QFile::remove(entry.absoluteFilePath());
+            } else if (msg.clickedButton() == (QAbstractButton*) skipButton) {
+                return false;
+            } else if (msg.clickedButton() == (QAbstractButton*) skipAllButton) {
+                policy.skipAllReadOnly = true;
+                return false;
+            }
+        }
+    } else {
+        return QFile::remove(entry.absoluteFilePath());
+    }
+
+    return false;
+}
+
 // remove directory recursively with progress bar update
-bool MyFileSystemModel::removeDirectory(const QString &dirPath, QProgressDialog *progressDialog, int &count, int total)
+bool MyFileSystemModel::removeDirectory(const QString &dirPath, QProgressDialog *progressDialog,
+                                        int &count, int total, RemovePolicy &policy)
 {
     QDir dir(dirPath);
     QFileInfoList entries = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System);
 
-    for (const QFileInfo &entry : entries) {
+    foreach (const QFileInfo &entry, entries) {
         if (progressDialog->wasCanceled())
             return false;
 
         if (entry.isDir()) {
-            if (!removeDirectory(entry.absoluteFilePath(), progressDialog, count, total))
+            if (!removeDirectory(entry.absoluteFilePath(), progressDialog, count, total, policy))
                 return false;
         } else {
-            QFile::remove(entry.absoluteFilePath());
+            removeFileWithPolicy(entry.absoluteFilePath(), policy);
             count++;
             progressDialog->setValue(count);
-            progressDialog->setLabelText(
-                QString("Removed %1 of %2")
-                    .arg(count)
-                    .arg(total)
-                );
+            progressDialog->setLabelText(QString("Removed %1 of %2").arg(count).arg(total));
             QCoreApplication::processEvents();
         }
     }
@@ -674,7 +843,7 @@ int MyFileSystemModel::countEntriesInDirectory(const QString &dirPath)
     QDir dir(dirPath);
     QFileInfoList entries = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System);
 
-    for (const QFileInfo &entry : entries) {
+    foreach (const QFileInfo &entry, entries) {
         if (entry.isDir()) {
             total += countEntriesInDirectory(entry.absoluteFilePath());
         } else {

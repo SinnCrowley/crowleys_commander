@@ -7,6 +7,13 @@
 #include <QDir>
 #include <QFileSystemWatcher>
 
+#include "archivemanager.h"
+
+struct RemovePolicy {
+    bool removeAllReadOnly = false;
+    bool skipAllReadOnly = false;
+};
+
 class MyFileSystemModel : public QAbstractTableModel
 {
     Q_OBJECT
@@ -32,7 +39,8 @@ public:
     bool copyFiles(QStringList source, QString targetPath);
     bool copyDirectory(const QString &sourceDirPath, const QString &targetDirPath, QProgressDialog &progress, qint64 &copiedSize, qint64 totalSize);
     qint64 calculateDirectorySize(const QFileInfo &file);
-    bool removeDirectory(const QString &dirPath, QProgressDialog *progressDialog, int &count, int total);
+    bool removeFileWithPolicy(const QString &filePath, RemovePolicy &policy);
+    bool removeDirectory(const QString &dirPath, QProgressDialog *progressDialog, int &count, int total, RemovePolicy &policy);
     int countEntriesInDirectory(const QString &dirPath);
 
     // Drag and Drop
@@ -45,6 +53,13 @@ public:
 
     void setFilter(QDir::Filters newFilters);
     QDir::Filters filter();
+
+    ArchiveManager archiveManager;
+    bool inArchiveMode = false;
+    QString archiveInternalPath = "/";
+    QList<ArchiveEntry> archiveEntries;
+    QList<ArchiveEntry> archiveEntriesList() const { return archiveEntries; }
+    bool isInArchiveMode() const { return inArchiveMode; }
 
 signals:
     void numberPopulated(const QString &path, int start, int number, int total);
